@@ -13,12 +13,13 @@
 :root {
   --gold: #f0c96a;
   --gold-light: #fde99d;
-  --gold-dim: rgba(240, 201, 106, 0.15);
-  --bg-dark: #13100d;
-  --bg-card: #1c1813;
-  --bg-alt: #17140f;
+  --gold-dim: rgba(119, 72, 180, 0.15);
+  --bg-dark: #1a0b2e;
+  /* Deep Midnight Purple */
+  --bg-card: #24113d;
+  --bg-alt: #1f0e35;
   --text-main: #f5ede0;
-  --text-muted: #9e8e78;
+  --text-muted: #bda8e0;
   --accent: #e87c3e;
   --radius: 16px;
 }
@@ -46,7 +47,7 @@ body {
 
 .popup-card {
   position: relative;
-  background: linear-gradient(145deg, #1f1a14, #2a2218);
+  background: linear-gradient(145deg, #2a134d, #1a0b2e);
   border: 1px solid rgba(240, 201, 106, 0.3);
   border-radius: 24px;
   padding: 48px 40px 36px;
@@ -136,7 +137,7 @@ body {
   width: 100%;
   text-align: center;
   padding: 0px 20px 20px;
-  background: radial-gradient(ellipse at top, #2a1e0a 0%, #13100d 70%);
+  background: radial-gradient(ellipse at top, #3a1c6a 0%, #1a0b2e 70%);
   position: relative;
   overflow: hidden;
 }

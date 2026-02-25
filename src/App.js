@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
-const GOOGLE_REVIEW_LINK = "https://g.page/r/YOUR_GOOGLE_REVIEW_LINK_HERE"; // ← replace this
+const GOOGLE_REVIEW_LINK = "https://www.google.com/search?sca_esv=b622e0e69be708e0&sxsrf=ANbL-n4D2hdEGHr6Z4wZnlnxJo2UmNShRQ:1771792092724&q=rasavanti+juice+centre+(cafe)+sirsi+reviews+page&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOcOQQT2UuNYPKN8jHbUNk_TmM6OjT4KqcgIP3elK38yqrlr2OduO-RD181ip_Z5BxiaqUAtJUGyTyg-XiYDmjY-nKcPW9BzuKy4yZo9dJNIyMW75jA%3D%3D&sa=X&ved=2ahUKEwiD2bXy9-2SAxVeTmwGHW4SORAQrrQLegQIGxAA&biw=1522&bih=736&dpr=1.25&zx=1771792186825&no_sw_cr=1#lrd=0x3bbea92bc99dd9d9:0x5ebfcfff1ad73ee4,3"; // ← replace this
 
 const products = [
   {
@@ -108,6 +108,21 @@ const products = [
       { file: "Screenshot 2026-02-16 025524.png", type: "image" },
     ],
   },
+  {
+    name: "Red Fig (Anjeer)",
+    folder: "Red Fig",
+    media: [
+      { file: "Opening_frame_shows_202602230144.gif", type: "gif" },
+      { file: "Screenshot 2026-02-23 014809.png", type: "image" },
+    ],
+  },
+  {
+    name: "",
+    folder: "starting",
+    media: [
+      { file: "Screenshot 2026-02-23 014851.png", type: "image" },
+    ],
+  }
 ];
 
 function RatingPopup({ onClose }) {
