@@ -153,9 +153,24 @@ function App() {
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
-    // small delay so the page loads before popup appears
-    const timer = setTimeout(() => setShowPopup(true), 1200);
-    return () => clearTimeout(timer);
+    let triggered = false;
+    const handleScroll = () => {
+      if (triggered) return;
+
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+
+      // Check if user has scrolled near the bottom (within 20px)
+      if (scrollTop + clientHeight >= scrollHeight - 20) {
+        triggered = true;
+        setShowPopup(true);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
