@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import './App.css';
 
 const GOOGLE_REVIEW_LINK = "https://www.google.com/search?sca_esv=b622e0e69be708e0&sxsrf=ANbL-n4D2hdEGHr6Z4wZnlnxJo2UmNShRQ:1771792092724&q=rasavanti+juice+centre+(cafe)+sirsi+reviews+page&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOcOQQT2UuNYPKN8jHbUNk_TmM6OjT4KqcgIP3elK38yqrlr2OduO-RD181ip_Z5BxiaqUAtJUGyTyg-XiYDmjY-nKcPW9BzuKy4yZo9dJNIyMW75jA%3D%3D&sa=X&ved=2ahUKEwiD2bXy9-2SAxVeTmwGHW4SORAQrrQLegQIGxAA&biw=1522&bih=736&dpr=1.25&zx=1771792186825&no_sw_cr=1#lrd=0x3bbea92bc99dd9d9:0x5ebfcfff1ad73ee4,3"; // ← replace this
@@ -189,20 +190,221 @@ function IntroSequence({ onComplete }) {
   );
 }
 
-function FAQAccordion({ faq }) {
-  const [isOpen, setIsOpen] = useState(false);
+const useTypingEffect = (text, isTyping, speed) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    if (!isTyping) {
+      setDisplayedText("");
+      setIsComplete(false);
+      return;
+    }
+
+    let i = 0;
+    let timeoutId;
+    
+    const typeChar = () => {
+      if (i < text.length) {
+        setDisplayedText(text.substring(0, i + 1));
+        i++;
+        let delay = speed + (Math.random() * 20);
+        const char = text[i - 1];
+        if (['.', '?', '!'].includes(char)) delay += 150;
+        else if (char === ',') delay += 80;
+        
+        timeoutId = setTimeout(typeChar, delay);
+      } else {
+        setIsComplete(true);
+      }
+    };
+    
+    typeChar();
+    
+    return () => clearTimeout(timeoutId);
+  }, [text, isTyping, speed]);
+
+  return { displayedText, isComplete };
+};
+
+function CinematicFAQItem({ faq, isActive, onComplete }) {
+  const [phase, setPhase] = useState('idle');
+
+  useEffect(() => {
+    if (isActive && phase === 'idle') {
+      setPhase('question_typing');
+    } else if (!isActive && phase !== 'idle' && phase !== 'collapsing') {
+      setPhase('idle');
+    }
+  }, [isActive, phase]);
+
+  const { displayedText: qText, isComplete: qComplete } = useTypingEffect(
+    faq.question,
+    phase !== 'idle' && phase !== 'collapsing',
+    25
+  );
+
+  const { displayedText: aText, isComplete: aComplete } = useTypingEffect(
+    faq.answer,
+    phase === 'answer_typing' || phase === 'reading',
+    10
+  );
+
+  useEffect(() => {
+    if (phase === 'question_typing' && qComplete) {
+      const timer = setTimeout(() => setPhase('answer_expanding'), 200);
+      return () => clearTimeout(timer);
+    }
+    if (phase === 'answer_expanding') {
+      const timer = setTimeout(() => setPhase('answer_typing'), 600);
+      return () => clearTimeout(timer);
+    }
+    if (phase === 'answer_typing' && aComplete) {
+      const timer = setTimeout(() => setPhase('reading'), 2500); 
+      return () => clearTimeout(timer);
+    }
+    if (phase === 'reading') {
+      const timer = setTimeout(() => setPhase('collapsing'), 200); 
+      return () => clearTimeout(timer);
+    }
+    if (phase === 'collapsing') {
+      const timer = setTimeout(() => {
+        setPhase('idle');
+        onComplete();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, qComplete, aComplete, onComplete]);
+
+  const isExpanded = phase === 'answer_expanding' || phase === 'answer_typing' || phase === 'reading';
 
   return (
-    <div className={`faq-item ${isOpen ? 'active' : ''}`}>
-      <button className="faq-question" onClick={() => setIsOpen(!isOpen)}>
-        {faq.question}
-        <span className="faq-icon">{isOpen ? '−' : '+'}</span>
-      </button>
-      <div className="faq-answer" style={{ maxHeight: isOpen ? '300px' : '0' }}>
-        <div className="faq-answer-inner">
-          {faq.answer}
-        </div>
+    <motion.div 
+      className={`faq-item cinematic-faq-item ${isActive ? 'active-cinematic' : ''}`}
+      animate={{
+        boxShadow: isActive ? "0 15px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0, 0, 0, 0.2)"
+      }}
+      transition={{ duration: 0.8 }}
+      style={{ position: 'relative', overflow: 'hidden', padding: '1px', border: 'none' }}
+    >
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: '4px', background: 'rgba(212, 175, 55, 0.1)' }} />
+      
+      <AnimatePresence>
+        {isActive && (
+          <motion.div 
+            style={{ 
+              position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
+              background: 'conic-gradient(from 0deg, transparent 70%, rgba(212, 175, 55, 0.5) 90%, var(--gold-light) 100%)',
+              zIndex: 1
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, rotate: 360 }}
+            exit={{ opacity: 0 }}
+            transition={{ opacity: { duration: 0.5 }, rotate: { duration: 3, ease: "linear", repeat: Infinity } }}
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        style={{ 
+          position: 'absolute', inset: 1, borderRadius: '3px', zIndex: 2,
+          background: isActive ? 'linear-gradient(135deg, rgba(50, 18, 82, 0.95), rgba(43, 15, 69, 0.95))' : 'var(--bg-card)'
+        }} 
+      />
+
+      <div style={{ position: 'relative', zIndex: 3 }}>
+        <button className="faq-question cinematic-faq-question" style={{ background: 'transparent', border: 'none', position: 'relative', zIndex: 3, width: '100%', cursor: 'default' }}>
+          <div className="question-text-wrapper" style={{ position: 'relative', flex: 1, textAlign: 'left' }}>
+            <motion.span 
+              className="question-static"
+              animate={{ opacity: phase === 'idle' ? 1 : 0.3 }}
+              transition={{ duration: 0.5 }}
+            >
+              {faq.question}
+            </motion.span>
+            
+            {(phase !== 'idle' && phase !== 'collapsing') && (
+              <span className="question-typing" style={{ position: 'absolute', top: 0, left: 0, color: 'var(--gold-light)', textShadow: '0 0 8px rgba(212, 175, 55, 0.4)' }}>
+                {qText}
+                {phase === 'question_typing' && <span className="typing-cursor" />}
+              </span>
+            )}
+          </div>
+          
+          <div className="faq-icon-wrapper" style={{ marginLeft: '16px' }}>
+             <motion.div
+               animate={{ rotate: isExpanded ? 180 : 0 }}
+               transition={{ duration: 0.5, ease: "easeInOut" }}
+             >
+               {isExpanded ? (
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <line x1="5" y1="12" x2="19" y2="12"></line>
+                 </svg>
+               ) : (
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <line x1="12" y1="5" x2="12" y2="19"></line>
+                   <line x1="5" y1="12" x2="19" y2="12"></line>
+                 </svg>
+               )}
+             </motion.div>
+          </div>
+        </button>
+
+        <motion.div 
+          className="faq-answer cinematic-faq-answer"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ 
+            height: isExpanded ? "auto" : 0,
+            opacity: isExpanded ? 1 : 0
+          }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          style={{ overflow: 'hidden', background: 'transparent' }}
+        >
+          <div className="faq-answer-inner" style={{ background: 'transparent', paddingTop: '0' }}>
+            {phase !== 'idle' && phase !== 'question_typing' && phase !== 'answer_expanding' ? (
+               <span className="answer-typing-text" style={{ color: 'var(--text-main)', textShadow: '0 0 4px rgba(255, 255, 255, 0.1)' }}>
+                 {aText}
+                 {phase === 'answer_typing' && <span className="typing-cursor" />}
+               </span>
+            ) : null}
+          </div>
+        </motion.div>
       </div>
+    </motion.div>
+  );
+}
+
+function AnimatedFAQSection({ faqs }) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const sectionRef = useRef(null);
+  const isInView = useInView(sectionRef, { margin: "-30% 0px -30% 0px" });
+
+  useEffect(() => {
+    if (isInView && activeIndex === -1) {
+      setActiveIndex(0);
+    }
+  }, [isInView, activeIndex]);
+
+  const handleComplete = (index) => {
+    if (index === faqs.length - 1) {
+      setTimeout(() => {
+        if (sectionRef.current) setActiveIndex(0); 
+      }, 3000);
+    } else {
+      setActiveIndex(index + 1);
+    }
+  };
+
+  return (
+    <div className="faq-accordion fade-up delay-2" ref={sectionRef}>
+      {faqs.map((faq, index) => (
+        <CinematicFAQItem 
+          key={index} 
+          faq={faq} 
+          isActive={activeIndex === index}
+          onComplete={() => handleComplete(index)}
+        />
+      ))}
     </div>
   );
 }
@@ -319,6 +521,7 @@ function App() {
   });
   const [showPopup, setShowPopup] = useState(false);
   const [showFranchiseForm, setShowFranchiseForm] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [popupTriggered, setPopupTriggered] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -632,11 +835,7 @@ function App() {
             <p className="section-subtitle" style={{ textAlign: 'center', margin: '0 auto' }}>Common questions about starting your journey with us.</p>
           </div>
 
-          <div className="faq-accordion fade-up delay-2">
-            {faqs.map((faq, index) => (
-              <FAQAccordion key={index} faq={faq} />
-            ))}
-          </div>
+          <AnimatedFAQSection faqs={faqs} />
         </div>
       </section>
 

@@ -874,6 +874,22 @@ html {
   font-weight: 300;
 }
 
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: var(--gold-light);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: cursorBlink 0.8s step-end infinite;
+  box-shadow: 0 0 8px var(--gold-light);
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* ══════════════════════════════════
    FINAL CTA SECTION
 ══════════════════════════════════ */
