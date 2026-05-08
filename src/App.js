@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 const GOOGLE_REVIEW_LINK = "https://www.google.com/search?sca_esv=b622e0e69be708e0&sxsrf=ANbL-n4D2hdEGHr6Z4wZnlnxJo2UmNShRQ:1771792092724&q=rasavanti+juice+centre+(cafe)+sirsi+reviews+page&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOcOQQT2UuNYPKN8jHbUNk_TmM6OjT4KqcgIP3elK38yqrlr2OduO-RD181ip_Z5BxiaqUAtJUGyTyg-XiYDmjY-nKcPW9BzuKy4yZo9dJNIyMW75jA%3D%3D&sa=X&ved=2ahUKEwiD2bXy9-2SAxVeTmwGHW4SORAQrrQLegQIGxAA&biw=1522&bih=736&dpr=1.25&zx=1771792186825&no_sw_cr=1#lrd=0x3bbea92bc99dd9d9:0x5ebfcfff1ad73ee4,3"; // ← replace this
@@ -125,95 +125,606 @@ const products = [
   }
 ];
 
+const testimonials = [
+  {
+    id: 1,
+    text: "We’ve always loved visiting Nyathiyas as a family. When the chance came to open our own, we knew we had to do it. The team treated us like family, and bringing these flavors to our neighborhood has been incredibly rewarding.",
+    author: "",
+    role: "Franchise Partner, "
+  },
+  {
+    id: 2,
+    text: "There’s something so nostalgic yet premium about their treats. Every bite feels like it was made with genuine care. Our customers don't just come for dessert; they come for the warmth of the experience.",
+    author: "",
+    role: "Franchise Partner"
+  },
+  {
+    id: 3,
+    text: "I didn't have much experience in food, but I knew I loved their products. The Nyathiyas team guided me patiently through every single step. Today, seeing the smiles on people's faces when they taste our menu is the best feeling.",
+    author: "",
+    role: "Franchise Partner"
+  }
+];
+
+const faqs = [
+
+  {
+    "question": "What is the initial investment required for a Nyathiyas franchise?",
+    "answer": "The investment required depends on the franchise format, outlet size, and location. Our business model is designed to be accessible while maintaining premium quality standards, making it suitable for both new and experienced entrepreneurs. Detailed investment and setup information will be shared during the franchise consultation process."
+  },
+  {
+    question: "Do I need prior experience in the food and beverage industry?",
+    answer: "No prior F&B experience is strictly required. Our turnkey model is built for driven entrepreneurs from any background. We provide comprehensive, end-to-end training covering operations, quality control, customer service, and local marketing."
+  },
+  {
+    question: "What kind of setup support does Nyathiyas provide?",
+    answer: "We offer complete setup support including site selection assistance, architectural and interior design guidelines matching our premium aesthetic, equipment sourcing, and pre-launch marketing strategies to ensure a powerful grand opening."
+  },
+  {
+    question: "How long does it typically take to launch a franchise?",
+    answer: "From the moment the agreement is signed and the location is finalized, a standard Nyathiyas outlet can be fully operational within 45 to 60 days, thanks to our streamlined setup protocols."
+  },
+  {
+    question: "What makes the Nyathiyas business model so profitable?",
+    answer: "Our profitability stems from a combination of low barrier to entry, compact setup requirements, highly optimized supply chains, and a premium product that commands excellent margins while ensuring high customer retention and loyalty."
+  }
+];
+
+function IntroSequence({ onComplete }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 4500); // 4.5s buffer to allow CSS to fully complete
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="intro-overlay">
+      <div className="intro-ambient-glow"></div>
+      <div className="intro-content">
+        <h1 className="intro-title">Welcome to Nyathiyas</h1>
+        <p className="intro-subtitle">Natural Ice Cream, Crafted in the Form of Candy</p>
+      </div>
+    </div>
+  );
+}
+
+function FAQAccordion({ faq }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={`faq-item ${isOpen ? 'active' : ''}`}>
+      <button className="faq-question" onClick={() => setIsOpen(!isOpen)}>
+        {faq.question}
+        <span className="faq-icon">{isOpen ? '−' : '+'}</span>
+      </button>
+      <div className="faq-answer" style={{ maxHeight: isOpen ? '300px' : '0' }}>
+        <div className="faq-answer-inner">
+          {faq.answer}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RatingPopup({ onClose }) {
   return (
-    <div className="popup-overlay">
-      <div className="popup-card">
+    <div className="popup-overlay" onClick={onClose}>
+      <div className="popup-card" onClick={(e) => e.stopPropagation()}>
         <button className="popup-close" onClick={onClose} aria-label="Close">✕</button>
-        <div className="popup-stars">★ ★ ★ ★ ★</div>
-        <h2 className="popup-heading">Enjoying our flavours?</h2>
-        <p className="popup-body">
-          If you love what we're crafting, it would mean the world to us if you
-          left us a quick Google review! It only takes a second. 💛
+        <div style={{ fontSize: '2rem', color: 'var(--gold)', marginBottom: '16px', letterSpacing: '4px' }}>★ ★ ★ ★ ★</div>
+        <h2 style={{ fontFamily: 'Playfair Display', fontSize: '1.8rem', color: 'var(--gold-light)', marginBottom: '16px' }}>Enjoying our craft?</h2>
+        <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '32px' }}>
+          If our creations have brought warmth to your day, it would mean the world to us if you left a quick review.
         </p>
-        <a
-          href={GOOGLE_REVIEW_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="popup-btn"
-        >
-          ⭐ Rate Us on Google
+        <a href={GOOGLE_REVIEW_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+          Rate Us on Google
         </a>
       </div>
     </div>
   );
 }
 
+function FranchiseFormPopup({ onClose }) {
+  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    const formData = new FormData(e.target);
+    // TODO: Temporary hardcoded key for testing. 
+    // Later, move this key into a proper .env file for security and production deployment.
+    formData.append("access_key", "4903d823-345a-4216-bd96-f5a2b0bddee4");
+    formData.append("subject", "New Franchise Application - Nyathiyas");
+    formData.append("from_name", "Nyathiyas Website Franchise Form");
+
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        setError(data.message || "Something went wrong. Please try again.");
+      }
+    } catch (err) {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="popup-overlay" onClick={onClose}>
+      <div className="form-popup-card" onClick={(e) => e.stopPropagation()}>
+        <button className="popup-close" onClick={onClose} aria-label="Close">✕</button>
+
+        {submitted ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ fontSize: '4rem', color: 'var(--gold)', marginBottom: '24px' }}>✓</div>
+            <h3 style={{ fontFamily: 'Playfair Display', fontSize: '2rem', color: 'var(--gold-light)', marginBottom: '16px' }}>Application Received</h3>
+            <p style={{ color: 'var(--text-muted)' }}>Thank you for your interest in joining the Nyathiyas legacy. Our franchise team will contact you shortly.</p>
+          </div>
+        ) : (
+          <>
+            <h2 style={{ fontFamily: 'Playfair Display', fontSize: '2rem', color: 'var(--gold-light)', marginBottom: '8px' }}>Begin Your Journey</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Submit your details to explore our premium franchise opportunities.</p>
+
+            <form onSubmit={handleSubmit} className="contact-form">
+              <div className="input-group">
+                <label>Full Name</label>
+                <input type="text" name="name" placeholder="Enter your full name" required />
+              </div>
+
+              <div className="input-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone" placeholder="Enter your phone number" required />
+              </div>
+
+              <div className="input-group">
+                <label>Email Address</label>
+                <input type="email" name="email" placeholder="Enter your email address" required />
+              </div>
+
+              <div className="input-group">
+                <label>Target City / Location</label>
+                <input type="text" name="location" placeholder="Where do you wish to open?" required />
+              </div>
+
+              {error && <p style={{ color: '#ff6b6b', fontSize: '0.9rem', margin: '0' }}>{error}</p>}
+
+              <button type="submit" className="btn btn-primary" style={{ marginTop: '16px', width: '100%', opacity: isSubmitting ? 0.7 : 1 }} disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [showIntro, setShowIntro] = useState(() => {
+    if (sessionStorage.getItem('introShown')) return false;
+    return true;
+  });
   const [showPopup, setShowPopup] = useState(false);
+  const [showFranchiseForm, setShowFranchiseForm] = useState(false);
+  const [popupTriggered, setPopupTriggered] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
+  const cursorGlowRef = useRef(null);
+
+  const handleIntroComplete = () => {
+    sessionStorage.setItem('introShown', 'true');
+    setShowIntro(false);
+  };
+
+  // Cursor glow effect
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (cursorGlowRef.current && window.innerWidth > 768) {
+        requestAnimationFrame(() => {
+          if (cursorGlowRef.current) {
+            cursorGlowRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+          }
+        });
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
-    let triggered = false;
     const handleScroll = () => {
-      if (triggered) return;
+      if (window.scrollY > 50) setScrolled(true);
+      else setScrolled(false);
 
-      const scrollHeight = document.documentElement.scrollHeight;
-      const scrollTop = document.documentElement.scrollTop;
-      const clientHeight = document.documentElement.clientHeight;
+      const scrollHeight = document.body.scrollHeight;
+      const scrollPosition = window.scrollY + window.innerHeight;
 
-      // Check if user has scrolled near the bottom (within 20px)
-      if (scrollTop + clientHeight >= scrollHeight - 20) {
-        triggered = true;
-        setShowPopup(true);
-        window.removeEventListener('scroll', handleScroll);
+      if (scrollPosition >= scrollHeight - 50) {
+        setPopupTriggered((prev) => {
+          if (!prev) {
+            setShowPopup(true);
+            return true;
+          }
+          return prev;
+        });
       }
     };
 
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    const hiddenElements = document.querySelectorAll('.fade-up');
+    hiddenElements.forEach((el) => observer.observe(el));
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      hiddenElements.forEach((el) => observer.unobserve(el));
+    };
   }, []);
+
+  // Track active section for navbar
+  useEffect(() => {
+    const sections = ['home', 'about', 'franchise', 'products', 'testimonials', 'faq', 'contact'];
+    const sectionElements = sections.map(id => document.getElementById(id)).filter(Boolean);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, { threshold: 0.3, rootMargin: "-10% 0px -40% 0px" });
+
+    sectionElements.forEach(el => observer.observe(el));
+    return () => sectionElements.forEach(el => observer.unobserve(el));
+  }, []);
+
+  useEffect(() => {
+    if (showIntro || showPopup || showFranchiseForm) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [showIntro, showPopup, showFranchiseForm]);
 
   return (
     <div className="App">
-      {/* ── Rating popup ── */}
+      {showIntro && <IntroSequence onComplete={handleIntroComplete} />}
+
+      {/* ── Cursor Glow Effect ── */}
+      <div className="cursor-glow" ref={cursorGlowRef}></div>
+
       {showPopup && <RatingPopup onClose={() => setShowPopup(false)} />}
+      {showFranchiseForm && <FranchiseFormPopup onClose={() => setShowFranchiseForm(false)} />}
 
-      {/* ── Page header ── */}
-      <header className="page-header">
-        <img src="/logo.png" alt="Nyathiyas logo" className="header-logo" />
-        <div className="header-divider" />
-      </header>
+      {/* ── Navigation Bar ── */}
+      <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
+        <div className="navbar-container">
+          <div className="navbar-brand">
+            <a href="#home">Nyathiyas</a>
+          </div>
 
-      {/* ── Product sections ── */}
-      {products.map((product, idx) => (
-        <div key={product.folder} className={`product-section ${idx % 2 === 1 ? 'product-section--alt' : ''}`}>
-          <div className="product-inner">
-            <div className="product-label">
-              <span className="product-number">{String(idx + 1).padStart(2, '0')}</span>
-              <h2 className="product-title">{product.name}</h2>
-            </div>
-            <div className="product-media">
-              {product.media.map((item) => {
-                const src = `/gif/${product.folder}/${item.file}`;
-                return (
-                  <div key={item.file} className={`media-wrap ${item.type === 'gif' ? 'media-wrap--gif' : 'media-wrap--image'}`}>
-                    <img
-                      src={src}
-                      alt={`${product.name} - ${item.type === 'gif' ? 'animation' : 'preview'}`}
-                      className={item.type === 'gif' ? 'media-gif' : 'media-image'}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+          <div className={`navbar-menu ${menuOpen ? 'is-open' : ''}`}>
+            <a href="#home" className={activeSection === 'home' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Home</a>
+            <a href="#about" className={activeSection === 'about' ? 'active' : ''} onClick={() => setMenuOpen(false)}>About</a>
+            <a href="#franchise" className={activeSection === 'franchise' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Franchise</a>
+            <a href="#products" className={activeSection === 'products' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Products</a>
+            <a href="#testimonials" className={activeSection === 'testimonials' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Testimonials</a>
+            <a href="#faq" className={activeSection === 'faq' ? 'active' : ''} onClick={() => setMenuOpen(false)}>FAQ</a>
+            <a href="#contact" className={activeSection === 'contact' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Contact</a>
+          </div>
+
+          <div className="navbar-actions">
+            <button className="btn btn-primary btn-sm nav-btn" onClick={() => setShowFranchiseForm(true)}>Apply</button>
+            <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)}>
+              <span className={`bar ${menuOpen ? 'open' : ''}`}></span>
+              <span className={`bar ${menuOpen ? 'open' : ''}`}></span>
+              <span className={`bar ${menuOpen ? 'open' : ''}`}></span>
+            </button>
           </div>
         </div>
-      ))}
+      </nav>
+
+      {/* ── Hero section ── */}
+      <section id="home" className="hero-section">
+        <div className="hero-content">
+          <h1 className="hero-title">Experience the Art of Taste</h1>
+          <p className="hero-subtitle">
+            Immerse yourself in a legacy of premium craftsmanship. Exquisite flavors, cinematic luxury, and unforgettable moments wrapped in gold.
+          </p>
+          <div className="hero-buttons">
+            <button className="btn btn-primary" onClick={() => setShowFranchiseForm(true)}>Join the Legacy</button>
+            <a href="#products" className="btn btn-secondary">Explore Collection</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── About Section ── */}
+      <section id="about" className="about-section">
+        <div className="about-container">
+          <div className="about-content fade-up delay-1">
+            <h2 className="section-title">Our Heritage</h2>
+            <h3 className="section-subtitle">A Tradition of Culinary Excellence Since the 1960s</h3>
+            <p className="about-text">
+              Serving since the 1960s, Rasavanti Cafe proudly carries forward a legacy built across three generations of passion, quality, and tradition. While natural ice cream has been cherished for decades, we pioneered the unique concept of handcrafted natural ice cream candy bars — bringing authentic flavors into an exciting new form.
+            </p>
+            <p className="about-text">
+              Born from a deep passion for culinary excellence, Nyathiyas is more than just a brand — it is a celebration of taste, craftsmanship, and premium quality. Our journey began with a simple vision: to create unforgettable treats using only the finest ingredients and real fruit flavors.
+            </p>
+            <p className="about-text">
+              Today, with our proven business model and unwavering commitment to perfection, we continue to set new standards in the industry while winning the hearts of customers with every bite.
+            </p>
+          </div>
+          <div className="about-image-wrapper fade-up delay-2">
+            <img
+              src="/logo.gif"
+              onError={(e) => { e.target.src = '/logo.png'; e.target.onerror = null; }}
+              alt="Nyathiyas Animated Logo"
+              className="about-animated-logo"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Franchise Section ── */}
+      <section id="franchise" className="franchise-section">
+        <div className="franchise-container">
+          <div className="franchise-header fade-up">
+            <h2 className="section-title">The Franchise Opportunity</h2>
+            <p className="section-subtitle">Step into a world of profitability and elegance with our proven luxury business model.</p>
+          </div>
+
+          <div className="franchise-cards">
+            <div className="info-card fade-up delay-1">
+              <div className="card-icon">✦</div>
+              <h3>Low Barrier to Entry</h3>
+              <p>Start your premium entrepreneurial journey with an accessible investment structure.</p>
+            </div>
+            <div className="info-card fade-up delay-2">
+              <div className="card-icon">✦</div>
+              <h3>Compact Setup</h3>
+              <p>Perfectly optimized for small yet high-potential luxury spaces.</p>
+            </div>
+            <div className="info-card fade-up delay-3">
+              <div className="card-icon">✦</div>
+              <h3>Comprehensive Training</h3>
+              <p>We guide you through every operational step to ensure immaculate service.</p>
+            </div>
+            <div className="info-card fade-up delay-4">
+              <div className="card-icon">✦</div>
+              <h3>Turnkey Launch</h3>
+              <p>End-to-end store setup and design support matching our high-end aesthetic.</p>
+            </div>
+          </div>
+
+          <div className="franchise-details">
+            <div className="franchise-who fade-up delay-1">
+              <h3 className="why-title">Who This Is For</h3>
+              <ul className="why-list">
+                <li><strong>New Entrepreneurs:</strong> We provide step-by-step guidance.</li>
+                <li><strong>Investors:</strong> A highly scalable, high-ROI luxury model.</li>
+                <li><strong>Connoisseurs:</strong> Turn your passion for quality treats into profit.</li>
+                <li><strong>Driven Leaders:</strong> Perfect for those wanting a proven, turnkey system.</li>
+              </ul>
+            </div>
+
+            <div className="franchise-how fade-up delay-2">
+              <h3 className="why-title">How It Works</h3>
+              <div className="how-steps">
+                <div className="how-step">
+                  <div className="step-number">1</div>
+                  <div>
+                    <h4>Submit Application</h4>
+                    <p>Express your interest through our secure portal.</p>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="step-number">2</div>
+                  <div>
+                    <h4>Initial Consultation</h4>
+                    <p>We reach out for profiling and location assessment.</p>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="step-number">3</div>
+                  <div>
+                    <h4>Setup & Launch</h4>
+                    <p>Store design, comprehensive training, and grand opening.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="franchise-cta fade-up delay-3">
+            <button className="btn btn-primary btn-lg" onClick={() => setShowFranchiseForm(true)}>Apply for a Franchise</button>
+            <p className="cta-microcopy">Exclusive territories available. Fast review process.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Products Section ── */}
+      <div id="products" className="products-container">
+        {products.map((product, idx) => (
+          <div key={product.folder} className={`product-section ${idx % 2 === 1 ? 'product-section--alt' : ''}`}>
+            <div className="product-inner">
+              <div className="product-label fade-up">
+                <span className="product-number">No. {String(idx + 1).padStart(2, '0')}</span>
+                <h2 className="product-title">{product.name || "Signature Blend"}</h2>
+              </div>
+              <div className="product-media">
+                {product.media.map((item, mIdx) => {
+                  const src = `/gif/${product.folder}/${item.file}`;
+                  return (
+                    <div key={item.file} className={`media-wrap fade-up delay-${mIdx + 1} ${item.type === 'gif' ? 'media-wrap--gif' : 'media-wrap--image'}`}>
+                      <img
+                        src={src}
+                        alt={`${product.name} showcase`}
+                        className={item.type === 'gif' ? 'media-gif' : 'media-image'}
+                        loading="lazy"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Testimonials Section ── */}
+      <section id="testimonials" className="testimonials-section">
+        <div className="testimonials-container">
+          <div className="fade-up">
+            <h2 className="section-title" style={{ textAlign: 'center' }}>The Nyathiyas Experience</h2>
+            <p className="section-subtitle" style={{ textAlign: 'center', margin: '0 auto 64px' }}>Discover what our partners say about joining the Nyathiyas family.</p>
+          </div>
+
+          <div className="testimonials-grid">
+            {testimonials.map((t, idx) => (
+              <div key={t.id} className={`testimonial-card fade-up delay-${idx + 1}`}>
+                <div className="quote-icon">"</div>
+                <p className="testimonial-text">{t.text}</p>
+                <div className="testimonial-author">
+                  <div className="author-info">
+                    <h4>{t.author}</h4>
+                    <p>{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ Section ── */}
+      <section id="faq" className="faq-section">
+        <div className="faq-container">
+          <div className="fade-up">
+            <h2 className="section-title" style={{ textAlign: 'center' }}>Franchise FAQs</h2>
+            <p className="section-subtitle" style={{ textAlign: 'center', margin: '0 auto' }}>Common questions about starting your journey with us.</p>
+          </div>
+
+          <div className="faq-accordion fade-up delay-2">
+            {faqs.map((faq, index) => (
+              <FAQAccordion key={index} faq={faq} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA Section ── */}
+      <section className="final-cta-section">
+        <div className="final-cta-container fade-up">
+          <h2 className="section-title" style={{ color: '#fff', fontSize: 'clamp(3rem, 6vw, 4.5rem)', marginBottom: '32px' }}>Crafting Luxury, Together.</h2>
+          <p className="section-subtitle" style={{ color: 'var(--text-muted)', marginBottom: '48px', maxWidth: '600px' }}>Take the next step towards owning a high-end business with our proven and elegant franchise model.</p>
+          <button className="btn btn-primary btn-xl" onClick={() => setShowFranchiseForm(true)}>Secure Your Franchise</button>
+        </div>
+      </section>
+
+      {/* ── Contact Form Section ── */}
+      <section id="contact" className="contact-section">
+        <div className="contact-container">
+          <div className="contact-info fade-up">
+            <h2>Get in Touch</h2>
+            <p>Whether you have a question, a business proposal, or simply want to connect with us, our team is always here to assist you with care and prompt support.</p>            <div className="contact-details">
+              <div className="contact-detail-item">
+                <span>Email Us</span>
+                <a href="mailto:nyathiyas@gmail.com" className="contact-link">
+                  <strong>nyathiyas@gmail.com</strong>
+                </a>
+              </div>
+              <div className="contact-detail-item">
+                <span>Call Us</span>
+                <a href="tel:+919380992619" className="contact-link">
+                  <strong>+91 9380992619</strong>
+                </a>
+              </div>
+              <div className="contact-detail-item">
+                <span>Headquarters</span>
+                <a href="https://maps.google.com/?q=Sirsi,+Karnataka+581401" target="_blank" rel="noopener noreferrer" className="contact-link">
+                  <strong>Sirsi, Karnataka 581401</strong>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="contact-form-wrapper fade-up delay-2">
+            <form className="contact-form" onSubmit={(e) => e.preventDefault()}>
+              <div className="input-group">
+                <label>Name</label>
+                <input type="text" placeholder="Your Name" />
+              </div>
+              <div className="input-group">
+                <label>Email</label>
+                <input type="email" placeholder="Your Email Address" />
+              </div>
+              <div className="input-group">
+                <label>Subject</label>
+                <input type="text" placeholder="What is this regarding?" />
+              </div>
+              <div className="input-group">
+                <label>Message</label>
+                <textarea placeholder="Write your message here..."></textarea>
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }}>Send Message</button>
+            </form>
+          </div>
+        </div>
+      </section>
 
       <footer className="page-footer">
-        <p>© 2026 Nyathiyas · Made with 💛</p>
+        <p>©  NYATHIYAS. ALL RIGHTS RESERVED.</p>
       </footer>
+
+      <FloatingWhatsApp />
     </div>
+  );
+}
+
+function FloatingWhatsApp() {
+  return (
+    <a
+      href="https://wa.me/919380992619?text=Hello%20I%20am%20interested%20in%20Nyathiyas%20Franchise"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="floating-whatsapp"
+      aria-label="Chat With Us on WhatsApp"
+    >
+      <div className="floating-whatsapp-tooltip">Chat With Us</div>
+      <div className="floating-whatsapp-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.487-1.761-1.66-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+        </svg>
+      </div>
+    </a>
   );
 }
 
