@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
 const GOOGLE_REVIEW_LINK = "https://www.google.com/search?sca_esv=b622e0e69be708e0&sxsrf=ANbL-n4D2hdEGHr6Z4wZnlnxJo2UmNShRQ:1771792092724&q=rasavanti+juice+centre+(cafe)+sirsi+reviews+page&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOcOQQT2UuNYPKN8jHbUNk_TmM6OjT4KqcgIP3elK38yqrlr2OduO-RD181ip_Z5BxiaqUAtJUGyTyg-XiYDmjY-nKcPW9BzuKy4yZo9dJNIyMW75jA%3D%3D&sa=X&ved=2ahUKEwiD2bXy9-2SAxVeTmwGHW4SORAQrrQLegQIGxAA&biw=1522&bih=736&dpr=1.25&zx=1771792186825&no_sw_cr=1#lrd=0x3bbea92bc99dd9d9:0x5ebfcfff1ad73ee4,3"; // ← replace this
@@ -386,7 +386,7 @@ function FranchiseFormPopup({ onClose }) {
               {error && <p style={{ color: '#ff6b6b', fontSize: '0.9rem', margin: '0' }}>{error}</p>}
 
               <button type="submit" className="btn btn-primary" style={{ marginTop: '16px', width: '100%', opacity: isSubmitting ? 0.7 : 1 }} disabled={isSubmitting}>
-                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                {isSubmitting ? 'Reserving...' : 'Reserve Your Opportunity'}
               </button>
             </form>
           </>
@@ -804,7 +804,7 @@ function App() {
           </div>
 
           <div className="franchise-cta fade-up delay-3">
-            <button className="btn btn-primary btn-lg" onClick={() => setShowFranchiseForm(true)}>Apply for a Franchise</button>
+            <button className="btn btn-primary btn-lg" onClick={() => setShowFranchiseForm(true)}>Begin Your Nyathiyas Journey</button>
             <p className="cta-microcopy">Exclusive territories available. Fast review process.</p>
           </div>
         </div>
