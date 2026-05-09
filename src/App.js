@@ -190,221 +190,103 @@ function IntroSequence({ onComplete }) {
   );
 }
 
-const useTypingEffect = (text, isTyping, speed) => {
+function TypewriterText({ text, isActive }) {
   const [displayedText, setDisplayedText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    if (!isTyping) {
+    if (!isActive) {
       setDisplayedText("");
       setIsComplete(false);
       return;
     }
 
+    if (!text) {
+      setIsComplete(true);
+      return;
+    }
+
     let i = 0;
     let timeoutId;
-    
+
     const typeChar = () => {
       if (i < text.length) {
         setDisplayedText(text.substring(0, i + 1));
         i++;
-        let delay = speed + (Math.random() * 20);
+
+        let delay = 15 + (Math.random() * 20); // Medium-slow elegant pacing
         const char = text[i - 1];
-        if (['.', '?', '!'].includes(char)) delay += 150;
-        else if (char === ',') delay += 80;
-        
+        if (['.', '?', '!'].includes(char)) delay += 100;
+        else if (char === ',') delay += 40;
+
         timeoutId = setTimeout(typeChar, delay);
       } else {
         setIsComplete(true);
       }
     };
-    
-    typeChar();
-    
+
+    // Slight delay before typing begins
+    timeoutId = setTimeout(typeChar, 200);
+
     return () => clearTimeout(timeoutId);
-  }, [text, isTyping, speed]);
+  }, [text, isActive]);
 
-  return { displayedText, isComplete };
-};
-
-function CinematicFAQItem({ faq, isActive, onComplete }) {
-  const [phase, setPhase] = useState('idle');
-
-  useEffect(() => {
-    if (isActive && phase === 'idle') {
-      setPhase('question_typing');
-    } else if (!isActive && phase !== 'idle' && phase !== 'collapsing') {
-      setPhase('idle');
-    }
-  }, [isActive, phase]);
-
-  const { displayedText: qText, isComplete: qComplete } = useTypingEffect(
-    faq.question,
-    phase !== 'idle' && phase !== 'collapsing',
-    25
-  );
-
-  const { displayedText: aText, isComplete: aComplete } = useTypingEffect(
-    faq.answer,
-    phase === 'answer_typing' || phase === 'reading',
-    10
-  );
-
-  useEffect(() => {
-    if (phase === 'question_typing' && qComplete) {
-      const timer = setTimeout(() => setPhase('answer_expanding'), 200);
-      return () => clearTimeout(timer);
-    }
-    if (phase === 'answer_expanding') {
-      const timer = setTimeout(() => setPhase('answer_typing'), 600);
-      return () => clearTimeout(timer);
-    }
-    if (phase === 'answer_typing' && aComplete) {
-      const timer = setTimeout(() => setPhase('reading'), 2500); 
-      return () => clearTimeout(timer);
-    }
-    if (phase === 'reading') {
-      const timer = setTimeout(() => setPhase('collapsing'), 200); 
-      return () => clearTimeout(timer);
-    }
-    if (phase === 'collapsing') {
-      const timer = setTimeout(() => {
-        setPhase('idle');
-        onComplete();
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, qComplete, aComplete, onComplete]);
-
-  const isExpanded = phase === 'answer_expanding' || phase === 'answer_typing' || phase === 'reading';
+  // Fallback safety: ensures complete full text render if typing finishes or if text exists but animation is skipped
+  if (isActive && isComplete) {
+    return <>{text}</>;
+  }
 
   return (
-    <motion.div 
-      className={`faq-item cinematic-faq-item ${isActive ? 'active-cinematic' : ''}`}
-      animate={{
-        boxShadow: isActive ? "0 15px 40px rgba(0,0,0,0.4)" : "0 10px 30px rgba(0, 0, 0, 0.2)"
-      }}
-      transition={{ duration: 0.8 }}
-      style={{ position: 'relative', overflow: 'hidden', padding: '1px', border: 'none' }}
-    >
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: '4px', background: 'rgba(212, 175, 55, 0.1)' }} />
-      
-      <AnimatePresence>
-        {isActive && (
-          <motion.div 
-            style={{ 
-              position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
-              background: 'conic-gradient(from 0deg, transparent 70%, rgba(212, 175, 55, 0.5) 90%, var(--gold-light) 100%)',
-              zIndex: 1
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, rotate: 360 }}
-            exit={{ opacity: 0 }}
-            transition={{ opacity: { duration: 0.5 }, rotate: { duration: 3, ease: "linear", repeat: Infinity } }}
-          />
-        )}
-      </AnimatePresence>
-
-      <motion.div 
-        style={{ 
-          position: 'absolute', inset: 1, borderRadius: '3px', zIndex: 2,
-          background: isActive ? 'linear-gradient(135deg, rgba(50, 18, 82, 0.95), rgba(43, 15, 69, 0.95))' : 'var(--bg-card)'
-        }} 
-      />
-
-      <div style={{ position: 'relative', zIndex: 3 }}>
-        <button className="faq-question cinematic-faq-question" style={{ background: 'transparent', border: 'none', position: 'relative', zIndex: 3, width: '100%', cursor: 'default' }}>
-          <div className="question-text-wrapper" style={{ position: 'relative', flex: 1, textAlign: 'left' }}>
-            <motion.span 
-              className="question-static"
-              animate={{ opacity: phase === 'idle' ? 1 : 0.3 }}
-              transition={{ duration: 0.5 }}
-            >
-              {faq.question}
-            </motion.span>
-            
-            {(phase !== 'idle' && phase !== 'collapsing') && (
-              <span className="question-typing" style={{ position: 'absolute', top: 0, left: 0, color: 'var(--gold-light)', textShadow: '0 0 8px rgba(212, 175, 55, 0.4)' }}>
-                {qText}
-                {phase === 'question_typing' && <span className="typing-cursor" />}
-              </span>
-            )}
-          </div>
-          
-          <div className="faq-icon-wrapper" style={{ marginLeft: '16px' }}>
-             <motion.div
-               animate={{ rotate: isExpanded ? 180 : 0 }}
-               transition={{ duration: 0.5, ease: "easeInOut" }}
-             >
-               {isExpanded ? (
-                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <line x1="5" y1="12" x2="19" y2="12"></line>
-                 </svg>
-               ) : (
-                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <line x1="12" y1="5" x2="12" y2="19"></line>
-                   <line x1="5" y1="12" x2="19" y2="12"></line>
-                 </svg>
-               )}
-             </motion.div>
-          </div>
-        </button>
-
-        <motion.div 
-          className="faq-answer cinematic-faq-answer"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ 
-            height: isExpanded ? "auto" : 0,
-            opacity: isExpanded ? 1 : 0
-          }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          style={{ overflow: 'hidden', background: 'transparent' }}
-        >
-          <div className="faq-answer-inner" style={{ background: 'transparent', paddingTop: '0' }}>
-            {phase !== 'idle' && phase !== 'question_typing' && phase !== 'answer_expanding' ? (
-               <span className="answer-typing-text" style={{ color: 'var(--text-main)', textShadow: '0 0 4px rgba(255, 255, 255, 0.1)' }}>
-                 {aText}
-                 {phase === 'answer_typing' && <span className="typing-cursor" />}
-               </span>
-            ) : null}
-          </div>
-        </motion.div>
-      </div>
-    </motion.div>
+    <>
+      {displayedText}
+      {!isComplete && isActive && (
+        <span className="typing-cursor" />
+      )}
+    </>
   );
 }
 
-function AnimatedFAQSection({ faqs }) {
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const sectionRef = useRef(null);
-  const isInView = useInView(sectionRef, { margin: "-30% 0px -30% 0px" });
+function FAQAccordion({ faqs }) {
+  const [activeIndex, setActiveIndex] = useState(null);
 
-  useEffect(() => {
-    if (isInView && activeIndex === -1) {
-      setActiveIndex(0);
-    }
-  }, [isInView, activeIndex]);
-
-  const handleComplete = (index) => {
-    if (index === faqs.length - 1) {
-      setTimeout(() => {
-        if (sectionRef.current) setActiveIndex(0); 
-      }, 3000);
-    } else {
-      setActiveIndex(index + 1);
-    }
+  const toggleAccordion = (index) => {
+    setActiveIndex(activeIndex === index ? null : index);
   };
 
   return (
-    <div className="faq-accordion fade-up delay-2" ref={sectionRef}>
-      {faqs.map((faq, index) => (
-        <CinematicFAQItem 
-          key={index} 
-          faq={faq} 
-          isActive={activeIndex === index}
-          onComplete={() => handleComplete(index)}
-        />
-      ))}
+    <div className="faq-accordion fade-up delay-2">
+      {faqs.map((faq, index) => {
+        const isActive = activeIndex === index;
+        return (
+          <div key={index} className={`faq-item ${isActive ? 'active' : ''}`}>
+            <button className="faq-question" onClick={() => toggleAccordion(index)}>
+              <span style={{ flex: 1, paddingRight: '16px' }}>{faq.question}</span>
+              <span className="faq-icon">+</span>
+            </button>
+            <AnimatePresence initial={false}>
+              {isActive && (
+                <motion.div
+                  className="faq-answer"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="faq-answer-inner">
+                    <div style={{ position: 'relative' }}>
+                      {/* Invisible spacer prevents layout jumping while typing */}
+                      <span style={{ visibility: 'hidden', whiteSpace: 'pre-wrap' }}>{faq.answer}</span>
+                      <span style={{ position: 'absolute', top: 0, left: 0, width: '100%', whiteSpace: 'pre-wrap' }}>
+                        <TypewriterText text={faq.answer} isActive={isActive} />
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -514,6 +396,115 @@ function FranchiseFormPopup({ onClose }) {
   );
 }
 
+function ContactForm() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("idle"); // idle, submitting, success, error
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleContactSubmit = async () => {
+    console.log("CONTACT FORM STARTED");
+
+    if (!name || !email || !message) {
+      setErrorMessage("Please fill in all required fields.");
+      setStatus("error");
+      return;
+    }
+
+    const payload = {
+      access_key: process.env.REACT_APP_WEB3FORMS_KEY,
+      name,
+      email,
+      subject,
+      message
+    };
+
+    console.log("Sending payload:", payload);
+    setStatus("submitting");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      console.log("Response:", data);
+
+      if (data.success) {
+        setStatus("success");
+        setName("");
+        setEmail("");
+        setSubject("");
+        setMessage("");
+      } else {
+        setStatus("error");
+        setErrorMessage(data.message || "Something went wrong. Please try again.");
+        console.error("CONTACT ERROR:", data.message);
+      }
+    } catch (error) {
+      console.error("CONTACT ERROR:", error);
+      setStatus("error");
+      setErrorMessage("Network error. Please check your connection and try again.");
+    }
+  };
+
+  if (status === "success") {
+    return (
+      <div className="contact-form-wrapper fade-up delay-2" style={{ textAlign: 'center', padding: '64px 32px' }}>
+        <div style={{ fontSize: '3rem', color: 'var(--gold)', marginBottom: '16px' }}>✓</div>
+        <h3 style={{ fontFamily: 'Playfair Display', fontSize: '2rem', color: 'var(--gold-light)', marginBottom: '16px' }}>Message Sent Successfully</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Our team will get back to you shortly.</p>
+        <button className="btn btn-secondary" onClick={() => setStatus("idle")}>Send Another Message</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="contact-form-wrapper fade-up delay-2">
+      <form className="contact-form" onSubmit={(e) => e.preventDefault()}>
+        <div className="input-group">
+          <label>Name</label>
+          <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+        <div className="input-group">
+          <label>Email</label>
+          <input type="email" placeholder="Your Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </div>
+        <div className="input-group">
+          <label>Subject</label>
+          <input type="text" placeholder="What is this regarding?" value={subject} onChange={(e) => setSubject(e.target.value)} />
+        </div>
+        <div className="input-group">
+          <label>Message</label>
+          <textarea placeholder="Write your message here..." value={message} onChange={(e) => setMessage(e.target.value)} required></textarea>
+        </div>
+
+        {status === "error" && (
+          <p style={{ color: '#ff6b6b', fontSize: '0.9rem', margin: '0' }}>{errorMessage}</p>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-primary contact-submit-btn"
+          style={{ marginTop: '16px', opacity: status === 'submitting' ? 0.7 : 1 }}
+          onClick={handleContactSubmit}
+          disabled={status === 'submitting'}
+        >
+          {status === 'submitting' ? 'Sending...' : 'Send Message'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function App() {
   const [showIntro, setShowIntro] = useState(() => {
     if (sessionStorage.getItem('introShown')) return false;
@@ -526,7 +517,16 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const [aboutTilt, setAboutTilt] = useState({ x: 0, y: 0 });
   const cursorGlowRef = useRef(null);
+
+  const handleAboutMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setAboutTilt({ x: y * -10, y: x * 10 });
+  };
+  const handleAboutMouseLeave = () => setAboutTilt({ x: 0, y: 0 });
 
   const handleIntroComplete = () => {
     sessionStorage.setItem('introShown', 'true');
@@ -671,28 +671,65 @@ function App() {
 
       {/* ── About Section ── */}
       <section id="about" className="about-section">
+        <div className="about-ambient-glow" />
         <div className="about-container">
-          <div className="about-content fade-up delay-1">
-            <h2 className="section-title">Our Heritage</h2>
-            <h3 className="section-subtitle">A Tradition of Culinary Excellence Since the 1960s</h3>
-            <p className="about-text">
-              Serving since the 1960s, Rasavanti Cafe proudly carries forward a legacy built across three generations of passion, quality, and tradition. While natural ice cream has been cherished for decades, we pioneered the unique concept of handcrafted natural ice cream candy bars — bringing authentic flavors into an exciting new form.
-            </p>
-            <p className="about-text">
-              Born from a deep passion for culinary excellence, Nyathiyas is more than just a brand — it is a celebration of taste, craftsmanship, and premium quality. Our journey began with a simple vision: to create unforgettable treats using only the finest ingredients and real fruit flavors.
-            </p>
-            <p className="about-text">
-              Today, with our proven business model and unwavering commitment to perfection, we continue to set new standards in the industry while winning the hearts of customers with every bite.
-            </p>
+          <div className="about-content">
+            <motion.div
+              initial={{ opacity: 0, y: 20, filter: 'blur(5px)' }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: "-10%" }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+              <h2 className="section-title" style={{ letterSpacing: '0.02em' }}>Our Heritage</h2>
+              <h3 className="section-subtitle" style={{ color: 'var(--gold)' }}>A Tradition of Culinary Excellence Since the 1960s</h3>
+            </motion.div>
+            
+            <div className="about-paragraphs">
+              <motion.p 
+                className="about-text" 
+                initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }} 
+                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }} 
+                viewport={{ once: true }} 
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                Serving since the 1960s, Rasavanti Cafe proudly carries forward a legacy built across three generations of passion, quality, and tradition. While natural ice cream has been cherished for decades, we pioneered the unique concept of handcrafted natural ice cream candy bars — bringing authentic flavors into an exciting new form.
+              </motion.p>
+              <motion.p 
+                className="about-text" 
+                initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }} 
+                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }} 
+                viewport={{ once: true }} 
+                transition={{ duration: 0.8, delay: 0.4 }}
+              >
+                Born from a deep passion for culinary excellence, Nyathiyas is more than just a brand — it is a celebration of taste, craftsmanship, and premium quality. Our journey began with a simple vision: to create unforgettable treats using only the finest ingredients and real fruit flavors.
+              </motion.p>
+              <motion.p 
+                className="about-text" 
+                initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }} 
+                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }} 
+                viewport={{ once: true }} 
+                transition={{ duration: 0.8, delay: 0.6 }}
+              >
+                Today, with our proven business model and unwavering commitment to perfection, we continue to set new standards in the industry while winning the hearts of customers with every bite.
+              </motion.p>
+            </div>
           </div>
-          <div className="about-image-wrapper fade-up delay-2">
+          
+          <motion.div 
+            className="about-image-wrapper"
+            onMouseMove={handleAboutMouseMove}
+            onMouseLeave={handleAboutMouseLeave}
+            animate={{ rotateX: aboutTilt.x, rotateY: aboutTilt.y }}
+            transition={{ type: "spring", stiffness: 100, damping: 30 }}
+            whileHover={{ boxShadow: "0 30px 60px rgba(212, 175, 55, 0.15)" }}
+          >
             <img
               src="/logo.gif"
               onError={(e) => { e.target.src = '/logo.png'; e.target.onerror = null; }}
               alt="Nyathiyas Animated Logo"
               className="about-animated-logo"
             />
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -835,7 +872,7 @@ function App() {
             <p className="section-subtitle" style={{ textAlign: 'center', margin: '0 auto' }}>Common questions about starting your journey with us.</p>
           </div>
 
-          <AnimatedFAQSection faqs={faqs} />
+          <FAQAccordion faqs={faqs} />
         </div>
       </section>
 
@@ -875,27 +912,7 @@ function App() {
             </div>
           </div>
 
-          <div className="contact-form-wrapper fade-up delay-2">
-            <form className="contact-form" onSubmit={(e) => e.preventDefault()}>
-              <div className="input-group">
-                <label>Name</label>
-                <input type="text" placeholder="Your Name" />
-              </div>
-              <div className="input-group">
-                <label>Email</label>
-                <input type="email" placeholder="Your Email Address" />
-              </div>
-              <div className="input-group">
-                <label>Subject</label>
-                <input type="text" placeholder="What is this regarding?" />
-              </div>
-              <div className="input-group">
-                <label>Message</label>
-                <textarea placeholder="Write your message here..."></textarea>
-              </div>
-              <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }}>Send Message</button>
-            </form>
-          </div>
+          <ContactForm />
         </div>
       </section>
 
