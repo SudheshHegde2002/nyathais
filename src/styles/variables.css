@@ -1,0 +1,13 @@
+:root {
+  /* Premium Velvet Purple & Gold Palette (Dairy Milk Inspired) */
+  --gold: #d4af37;
+  --gold-light: #fdf5e6;
+  --gold-dim: rgba(212, 175, 55, 0.15);
+  --bg-dark: #1c0826; /* Deep velvet purple */
+  --bg-card: #2b0f45; /* Glossy plum card */
+  --bg-alt: #240b36;  /* Rich dark plum */
+  --text-main: #fdfaf5; /* Warm cream/white */
+  --text-muted: #b3a3c2; /* Elegant lavender-gray */
+  --accent: #a35ba3; /* Soft purple highlight */
+  --radius: 12px;
+}

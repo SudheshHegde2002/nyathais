@@ -1,0 +1,84 @@
+/* ══════════════════════════════════
+   INTRO REVEAL SEQUENCE
+══════════════════════════════════ */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: #14051f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: introOverlayFadeOut 4.5s ease-in-out forwards;
+  pointer-events: none;
+}
+
+.intro-ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 100vh;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(163, 91, 163, 0.2) 0%, rgba(212, 175, 55, 0.05) 40%, transparent 70%);
+  filter: blur(60px);
+  animation: introGlowPulse 4s ease-in-out forwards;
+}
+
+.intro-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 0 32px;
+}
+
+.intro-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  color: var(--gold-light);
+  margin-bottom: 16px;
+  opacity: 0;
+  filter: blur(10px);
+  animation: introTitleAnim 4s ease-in-out forwards;
+}
+
+.intro-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  color: var(--gold);
+  opacity: 0;
+  filter: blur(10px);
+  font-weight: 300;
+  letter-spacing: 1px;
+  animation: introSubtitleAnim 4s ease-in-out forwards;
+}
+
+@keyframes introOverlayFadeOut {
+  0% { opacity: 1; visibility: visible; }
+  85% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes introGlowPulse {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+  30% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  85% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+@keyframes introTitleAnim {
+  0% { opacity: 0; filter: blur(12px); transform: translateY(20px) scale(0.95); }
+  15% { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
+  75% { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
+  85% { opacity: 0; filter: blur(8px); transform: translateY(-15px) scale(1.05); }
+  100% { opacity: 0; filter: blur(8px); transform: translateY(-15px) scale(1.05); }
+}
+
+@keyframes introSubtitleAnim {
+  0% { opacity: 0; filter: blur(12px); transform: translateY(20px) scale(0.95); }
+  30% { opacity: 0; filter: blur(12px); transform: translateY(20px) scale(0.95); }
+  45% { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
+  75% { opacity: 1; filter: blur(0px); transform: translateY(0) scale(1); }
+  85% { opacity: 0; filter: blur(8px); transform: translateY(-15px) scale(1.05); }
+  100% { opacity: 0; filter: blur(8px); transform: translateY(-15px) scale(1.05); }
+}

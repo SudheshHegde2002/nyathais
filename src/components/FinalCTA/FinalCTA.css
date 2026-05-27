@@ -1,0 +1,32 @@
+/* ══════════════════════════════════
+   FINAL CTA SECTION
+══════════════════════════════════ */
+.final-cta-section {
+  padding: 160px 32px;
+  background-color: #14051f; /* Violet black */
+  color: var(--text-main);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid rgba(212, 175, 55, 0.05);
+}
+
+.final-cta-section::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  height: 800px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(163, 91, 163, 0.15) 0%, rgba(0, 0, 0, 0) 60%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.final-cta-container {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}

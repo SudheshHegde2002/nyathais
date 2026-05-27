@@ -1,0 +1,118 @@
+/* ══════════════════════════════════
+   HERO SECTION
+══════════════════════════════════ */
+.hero-section {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at center, #2e0f47 0%, var(--bg-dark) 60%);
+  color: var(--text-main);
+  text-align: center;
+  padding: 0 32px;
+  overflow: hidden;
+}
+
+/* Creamy velvet purple glow */
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: 120vw;
+  height: 120vh;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(163, 91, 163, 0.12) 0%, rgba(212, 175, 55, 0.04) 30%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 1000px;
+  width: 100%;
+  animation: heroBreathing 10s ease-in-out infinite alternate;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(3.5rem, 8vw, 6.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+  line-height: 1.1;
+
+  background: linear-gradient(to bottom right, #fff 20%, #e6c86e 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  opacity: 0;
+  animation: heroFadeSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+
+.hero-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  color: var(--text-muted);
+  margin-bottom: 56px;
+  line-height: 1.8;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+
+  opacity: 0;
+  animation: heroFadeSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-direction: row;
+  opacity: 0;
+  animation: heroFadeSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+}
+
+@keyframes heroFadeSlideUp {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes heroBreathing {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-8px); }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .hero-title {
+    font-size: 2.5rem;
+    line-height: 1.2;
+    margin-bottom: 24px;
+  }
+  .hero-subtitle {
+    font-size: 1rem;
+    margin-bottom: 32px;
+    padding: 0 10px;
+  }
+  .hero-buttons {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .btn { width: 100%; }
+  .hero-section::before { filter: blur(60px); width: 150vw; height: 100vh; }
+}

@@ -1,0 +1,57 @@
+/* ══════════════════════════════════
+   FOOTER
+══════════════════════════════════ */
+.page-footer {
+  width: 100%;
+  padding: 40px 32px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: #0f0317; /* Very dark violet-black */
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.copyright {
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+  font-weight: 500;
+}
+
+.footer-link:hover {
+  color: var(--gold);
+}
+
+.footer-divider {
+  color: rgba(212, 175, 55, 0.3);
+  font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+  .footer-container {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+

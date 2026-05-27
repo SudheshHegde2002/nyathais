@@ -1,0 +1,224 @@
+/* ══════════════════════════════════
+   FRANCHISE SECTION
+══════════════════════════════════ */
+.franchise-section {
+  padding: 160px 32px;
+  background-color: var(--bg-dark);
+  position: relative;
+}
+
+.franchise-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.franchise-header {
+  text-align: center;
+  margin-bottom: 80px;
+}
+
+.franchise-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 32px;
+  margin-bottom: 80px;
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(212, 175, 55, 0.08);
+  border-radius: 4px;
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(163, 91, 163, 0.15);
+  background: #321252;
+}
+
+.info-card:hover::after {
+  opacity: 1;
+}
+
+.card-icon {
+  font-size: 2.5rem;
+  margin-bottom: 24px;
+  color: var(--gold);
+}
+
+.info-card h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--gold-light);
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+.info-card p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* Franchise Content Layout */
+.franchise-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 64px;
+}
+
+.franchise-who,
+.franchise-how {
+  background: var(--bg-alt);
+  border-radius: 4px;
+  padding: 56px;
+  border: 1px solid rgba(212, 175, 55, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.why-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 40px;
+  color: var(--gold);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  padding-bottom: 20px;
+}
+
+.why-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding-left: 0;
+}
+
+.why-list li {
+  position: relative;
+  padding-left: 40px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.why-list li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  color: var(--gold);
+  font-size: 1.2rem;
+}
+
+.why-list li strong {
+  color: var(--gold-light);
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.how-steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+.how-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.step-number {
+  min-width: 48px;
+  height: 48px;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  font-size: 1.1rem;
+  font-weight: 500;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  font-family: 'Playfair Display', serif;
+}
+
+.how-step h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--gold-light);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.how-step p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+.franchise-cta {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.cta-microcopy {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .franchise-section {
+    width: 100%;
+    max-width: 100%;
+    padding: 80px 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .franchise-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .franchise-details {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .franchise-who,
+  .franchise-how {
+    padding: 32px 24px;
+  }
+}

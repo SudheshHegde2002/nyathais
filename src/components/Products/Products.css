@@ -1,0 +1,116 @@
+/* ══════════════════════════════════
+   PRODUCTS SECTION
+══════════════════════════════════ */
+.products-container {
+  padding-top: 100px;
+  background-color: var(--bg-dark);
+}
+
+.product-section {
+  width: 100%;
+  padding: 120px 32px;
+  background: radial-gradient(circle at center, rgba(54, 20, 84, 0.4) 0%, var(--bg-dark) 70%);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.product-section--alt {
+  background: radial-gradient(circle at center, rgba(43, 15, 69, 0.4) 0%, var(--bg-alt) 70%);
+}
+
+.product-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.product-label {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.product-number {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--gold);
+  opacity: 0.7;
+}
+
+.product-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--gold-light);
+  font-weight: 600;
+}
+
+.product-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.media-wrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 20px rgba(212, 175, 55, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s ease, border-color 0.6s ease;
+  background: var(--bg-card);
+}
+
+.media-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.media-wrap:hover {
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+.media-wrap--gif {
+  flex: 3 1 500px;
+}
+
+.media-wrap--image {
+  flex: 2 1 400px;
+}
+
+.media-gif,
+.media-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .products-container {
+    width: 100%;
+    max-width: 100%;
+    padding-top: 80px;
+    padding-bottom: 80px;
+    padding-left: 20px;
+    padding-right: 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .product-section {
+    padding: 60px 20px;
+  }
+}

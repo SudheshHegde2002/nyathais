@@ -1,0 +1,105 @@
+/* ══════════════════════════════════
+   FAQ SECTION
+══════════════════════════════════ */
+.faq-section {
+  padding: 160px 32px;
+  background-color: var(--bg-dark);
+}
+
+.faq-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.faq-accordion {
+  margin-top: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.faq-item {
+  background: var(--bg-card);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.faq-item.active {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  background: #321252;
+}
+
+.faq-question {
+  width: 100%;
+  text-align: left;
+  padding: 24px 32px;
+  background: transparent;
+  border: none;
+  color: var(--gold-light);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faq-icon {
+  color: var(--gold);
+  font-size: 1.5rem;
+  transition: transform 0.4s ease;
+  font-weight: 300;
+}
+
+.faq-item.active .faq-icon {
+  transform: rotate(45deg);
+}
+
+.faq-answer {
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.faq-answer-inner {
+  padding: 0 32px 32px;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: var(--gold-light);
+  vertical-align: text-bottom;
+  margin-left: 3px;
+  animation: softBlink 1s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+}
+
+@keyframes softBlink {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .faq-section {
+    width: 100%;
+    max-width: 100%;
+    padding: 80px 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .faq-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}

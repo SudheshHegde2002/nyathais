@@ -1,0 +1,120 @@
+/* ── Google Font ── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Reset / Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 90px;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.App {
+  position: relative;
+}
+
+/* Typography Base Classes (used across components) */
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-bottom: 24px;
+  letter-spacing: -0.01em;
+}
+
+.section-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  color: var(--text-muted);
+  margin-bottom: 64px;
+  line-height: 1.8;
+  font-weight: 300;
+}
+
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 2rem;
+    margin-bottom: 16px;
+  }
+  .section-subtitle {
+    font-size: 1rem;
+    margin-bottom: 32px;
+  }
+}
+
+/* Buttons */
+.btn {
+  padding: 16px 40px;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  font-family: 'Inter', sans-serif;
+  text-decoration: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+  color: #1a0820; /* Deep dark text on gold */
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #e6c86e 0%, #d4af37 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.btn-secondary {
+  background: rgba(43, 15, 69, 0.5); /* Deep plum transparent */
+  backdrop-filter: blur(12px);
+  color: var(--gold-light);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.btn-secondary:hover {
+  background: rgba(212, 175, 55, 0.08);
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(163, 91, 163, 0.2);
+}
+
+.btn-sm {
+  padding: 12px 28px;
+  font-size: 0.85rem;
+}
+
+.btn-lg {
+  padding: 20px 56px;
+  font-size: 1.1rem;
+}
+
+.btn-xl {
+  padding: 24px 64px;
+  font-size: 1.15rem;
+}

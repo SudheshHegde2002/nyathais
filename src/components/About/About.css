@@ -1,0 +1,93 @@
+/* ══════════════════════════════════
+   ABOUT SECTION
+══════════════════════════════════ */
+.about-section {
+  padding: 160px 32px;
+  background-color: var(--bg-alt);
+  color: var(--text-main);
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid rgba(212, 175, 55, 0.05);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.05);
+}
+
+.about-ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  height: 90vw;
+  max-width: 1000px;
+  max-height: 1000px;
+  background: radial-gradient(circle, rgba(103, 30, 160, 0.06) 0%, rgba(212, 175, 55, 0.02) 40%, transparent 70%);
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.about-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.about-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  font-weight: 300;
+}
+
+.about-image-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+
+.about-animated-logo {
+  width: 100%;
+  max-width: 380px;
+  object-fit: contain;
+  animation: elegantFloat 7s ease-in-out infinite;
+  filter: drop-shadow(0 10px 25px rgba(212, 175, 55, 0.12));
+}
+
+@keyframes elegantFloat {
+  0% { transform: translateY(0); filter: drop-shadow(0 10px 20px rgba(212, 175, 55, 0.1)); }
+  50% { transform: translateY(-8px); filter: drop-shadow(0 15px 35px rgba(212, 175, 55, 0.2)); }
+  100% { transform: translateY(0); filter: drop-shadow(0 10px 20px rgba(212, 175, 55, 0.1)); }
+}
+
+@media (max-width: 768px) {
+  .about-section {
+    padding: 80px 24px;
+  }
+  .about-container {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    text-align: center;
+  }
+  .about-text {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    text-align: center;
+  }
+  .about-image-wrapper {
+    width: 100%;
+    margin: 0 auto;
+  }
+  .about-animated-logo { 
+    max-width: 260px; 
+  }
+}
