@@ -614,7 +614,6 @@ export const supabaseService = {
       const index = db.orders.findIndex(o => o.id === orderId);
       if (index === -1) throw new Error('Order not found.');
 
-      const oldStatus = db.orders[index].status;
       db.orders[index].status = status;
       db.orders[index].updated_at = new Date().toISOString();
 

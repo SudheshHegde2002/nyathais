@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, Plus, Edit2, Search, Filter, Clock,
-  Truck, CheckCircle, Package, AlertCircle, Users, User, BarChart3,
-  MapPin, Phone, Mail, Check, Eye, Trash2, ArrowLeft
+  AlertCircle, Users, User, BarChart3,
+  MapPin, Phone, Mail, Check, ArrowLeft
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
 import { formatDate } from '../../utils/dateFormatter';
@@ -69,6 +69,7 @@ export default function AdminDashboard() {
   // Check login session
   useEffect(() => {
     checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkSession = async () => {
@@ -218,6 +219,7 @@ export default function AdminDashboard() {
     });
 
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSession, selectedOrder, soundEnabled]);
 
   // Load selected order history
