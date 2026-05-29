@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, Plus, Edit2, Search, Filter, Clock,
-  AlertCircle, Users, User, BarChart3,
-  MapPin, Phone, Mail, Check, ArrowLeft
+  AlertCircle, Users, User,
+  MapPin, Phone, Mail, Check, ArrowLeft,
+  Volume2, VolumeX, Package
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
 import { formatDate } from '../../utils/dateFormatter';
@@ -495,22 +496,48 @@ export default function AdminDashboard() {
       <header className="admin-main-header">
         <div className="header-brand">
           <span className="brand-logo" onClick={() => navigate('/')}>Nyathiya's</span>
-          <span className="admin-tag">Admin Console</span>
+          <div className="admin-badge">
+            <span className="admin-badge-pill">ADMIN</span>
+          </div>
         </div>
 
         <div className="header-actions">
           <div className="realtime-status-pill">
             <span className="pulse-dot"></span>
-            <span>Live Stream Connected</span>
+            <span>Live Stream</span>
           </div>
 
-          {/* Sound Controls */}
           <button
-            className={`sound-toggle-btn ${soundEnabled ? 'enabled' : 'disabled'}`}
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            title={soundEnabled ? 'Order audio chime enabled' : 'Order audio chime disabled'}
+            className={`header-nav-btn ${activeTab === 'flavors' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('flavors'); setSelectedOrder(null); }}
           >
-            {soundEnabled ? '🔊 Sound On' : '🔇 Muted'}
+            <Package size={18} />
+            <span>Catalog</span>
+          </button>
+
+          <button
+            className={`header-nav-btn ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('orders'); setSelectedOrder(null); }}
+          >
+            <ShoppingBag size={18} />
+            <span>Orders</span>
+          </button>
+
+          <button
+            className={`header-nav-btn ${activeTab === 'shops' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('shops'); setSelectedOrder(null); }}
+          >
+            <Users size={18} />
+            <span>Stores</span>
+          </button>
+
+          {/* Sound Controls relocated to header icon group */}
+          <button
+            className={`sound-nav-btn ${soundEnabled ? 'enabled' : 'disabled'}`}
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? 'Mute notification sounds' : 'Unmute notification sounds'}
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
 
           <button className="logout-btn" onClick={handleLogout} title="Sign Out">
@@ -523,17 +550,17 @@ export default function AdminDashboard() {
       <section className="dashboard-stats-strip">
         <div className="stat-card">
           <div className="stat-icon-wrap yellow">
-            <ShoppingBag size={22} />
+            <ShoppingBag size={20} />
           </div>
           <div className="stat-info">
             <span className="stat-val">{stats.todayCount}</span>
-            <span className="stat-label">Orders Placed Today</span>
+            <span className="stat-label">Orders Today</span>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrap purple">
-            <Clock size={22} />
+            <Clock size={20} />
           </div>
           <div className="stat-info">
             <span className="stat-val">{stats.pendingCount}</span>
@@ -543,46 +570,24 @@ export default function AdminDashboard() {
 
         <div className="stat-card">
           <div className="stat-icon-wrap blue">
-            <Users size={22} />
+            <Users size={20} />
           </div>
           <div className="stat-info">
             <span className="stat-val">{stats.activeShopsCount}</span>
-            <span className="stat-label">Active Partner Shops</span>
+            <span className="stat-label">Partner Shops</span>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrap green">
-            <BarChart3 size={22} />
+            <Package size={20} />
           </div>
           <div className="stat-info">
             <span className="stat-val">{stats.totalTubs}</span>
-            <span className="stat-label">Total Tubs Churned</span>
+            <span className="stat-label">Total Tubs</span>
           </div>
         </div>
       </section>
-
-      {/* NAVIGATION TABS */}
-      <nav className="admin-navigation-tabs">
-        <button
-          className={`nav-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('orders'); setSelectedOrder(null); }}
-        >
-          Active Orders Feed
-        </button>
-        <button
-          className={`nav-tab-btn ${activeTab === 'shops' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('shops'); setSelectedOrder(null); }}
-        >
-          Partner Stores Management
-        </button>
-        <button
-          className={`nav-tab-btn ${activeTab === 'flavors' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('flavors'); setSelectedOrder(null); }}
-        >
-          Gourmet Flavor Catalog
-        </button>
-      </nav>
 
       {/* MAIN CONTAINER */}
       <main className="admin-main-content">
@@ -865,7 +870,7 @@ export default function AdminDashboard() {
             <div className="tab-actions-row">
               <h2>Gourmet Batch Catalog</h2>
               <button className="btn btn-primary btn-sm" onClick={() => handleOpenFlavorModal()}>
-                <Plus size={16} style={{ marginRight: '6px' }} /> Add New Flavor
+                <Plus size={14} style={{ marginRight: '4px' }} /> Add Flavor
               </button>
             </div>
 
@@ -891,14 +896,14 @@ export default function AdminDashboard() {
 
                     <div className="flavor-card-footer">
                       <button className="btn btn-secondary btn-sm edit-btn" onClick={() => handleOpenFlavorModal(flavor)}>
-                        <Edit2 size={13} style={{ marginRight: '6px' }} /> Edit Info
+                        ✏ Edit
                       </button>
 
                       <button
                         className={`toggle-availability-btn ${flavor.active ? 'active' : 'inactive'}`}
                         onClick={() => toggleFlavorActive(flavor)}
                       >
-                        {flavor.active ? 'Make Unavailable' : 'Make Available'}
+                        {flavor.active ? '🚫 Disable' : '✔️ Enable'}
                       </button>
                     </div>
                   </div>

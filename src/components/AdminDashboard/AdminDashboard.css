@@ -11,10 +11,10 @@
 
 /* Header */
 .admin-main-header {
-  background: rgba(28, 8, 38, 0.9);
+  background: rgba(28, 8, 38, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
   padding: 16px 40px;
   display: flex;
   justify-content: space-between;
@@ -36,19 +36,26 @@
 .admin-main-header .header-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.admin-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--gold);
-  background: rgba(212, 175, 55, 0.1);
-  padding: 4px 10px;
+/* Shopkeeper Portal matching status pills */
+.admin-badge {
+  display: flex;
+  align-items: center;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 2px 8px;
   border-radius: 4px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  margin-left: 12px;
+}
+
+.admin-badge-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .realtime-status-pill {
@@ -89,52 +96,90 @@
   }
 }
 
-.sound-toggle-btn {
+/* Header Navigation buttons */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.header-nav-btn:hover {
+  color: var(--gold-light);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.header-nav-btn.active {
+  color: #1a0820;
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
+}
+
+/* Relocated Sound Controls */
+.sound-nav-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-main);
-  padding: 8px 16px;
+  color: var(--text-muted);
+  width: 42px;
+  height: 42px;
   border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
 }
 
-.sound-toggle-btn:hover {
+.sound-nav-btn:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.sound-toggle-btn.enabled {
-  border-color: rgba(212, 175, 55, 0.3);
+.sound-nav-btn.enabled {
   color: var(--gold);
+  border-color: rgba(212, 175, 55, 0.25);
+  background: rgba(212, 175, 55, 0.05);
 }
 
 /* Stats Strip */
 .dashboard-stats-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  padding: 24px 40px;
-  background: #14051e;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 12px 40px;
+  background: rgba(28, 8, 38, 0.4);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
 }
 
 .stat-card {
-  background: rgba(43, 15, 69, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
-  padding: 20px;
+  background: rgba(43, 15, 69, 0.35);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 8px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
 .stat-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,7 +211,7 @@
 }
 
 .stat-val {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
@@ -177,49 +222,10 @@
   color: var(--text-muted);
 }
 
-/* Navigation Tabs */
-.admin-navigation-tabs {
-  background: #190724;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 0 40px;
-  display: flex;
-  gap: 16px;
-}
-
-.nav-tab-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  font-weight: 500;
-  padding: 16px 20px;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.3s;
-}
-
-.nav-tab-btn:hover {
-  color: var(--gold-light);
-}
-
-.nav-tab-btn.active {
-  color: var(--gold);
-}
-
-.nav-tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: var(--gold);
-}
-
 /* Main Content Area */
 .admin-main-content {
   flex: 1;
-  padding: 30px 40px;
+  padding: 16px 40px 40px;
 }
 
 /* Orders Feed Layout split screen */
@@ -1191,8 +1197,8 @@
   }
 
   .dashboard-stats-strip {
-    padding: 20px;
-    gap: 16px;
+    padding: 16px 20px;
+    gap: 12px;
   }
 
   .admin-navigation-tabs {
@@ -1229,65 +1235,97 @@
     padding: 0;
   }
 
-  /* Header Optimization */
+  /* Header Optimization - Keep on one line */
   .admin-main-header {
     padding: 12px 16px;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .admin-main-header .brand-logo {
-    font-size: 1.35rem;
+    font-size: 1.3rem;
   }
 
-  .admin-tag {
-    font-size: 0.65rem;
-    padding: 2px 8px;
+  .admin-badge {
+    padding: 1px 6px;
+    margin-left: 8px;
+    border-radius: 4px;
+    background: rgba(212, 175, 55, 0.15);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+  }
+
+  .admin-badge-pill {
+    font-size: 0.6rem;
+    padding: 0;
+    background: transparent;
   }
 
   .header-actions {
-    gap: 10px;
+    gap: 8px;
   }
 
-  .sound-toggle-btn {
-    padding: 6px 12px;
-    font-size: 0.75rem;
+  .header-actions span {
+    display: none; /* Hide navigation titles on mobile, icons only */
+  }
+
+  .header-nav-btn {
+    padding: 10px;
+  }
+
+  .sound-nav-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
+  }
+
+  .logout-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
   }
 
   .realtime-status-pill {
-    padding: 4px 10px;
-    font-size: 0.75rem;
+    display: none !important; /* Hide to avoid text overlap on small screen sizes */
   }
 
-  /* Stats Strip */
+  /* Stats Strip - Zero large purple area, starts immediately below header */
   .dashboard-stats-strip {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    padding: 15px 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 6px 8px;
+    background: transparent;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
   }
 
   .stat-card {
-    padding: 12px;
-    gap: 10px;
-    border-radius: 8px;
+    padding: 6px 10px;
+    gap: 8px;
+    border-radius: 6px;
+    background: rgba(43, 15, 69, 0.55);
+    border: 1px solid rgba(212, 175, 55, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .stat-icon-wrap {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
   }
 
   .stat-icon-wrap svg {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
   }
 
   .stat-val {
-    font-size: 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
   }
 
   .stat-label {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
+    line-height: 1.2;
   }
 
   /* Navigation Tabs */
@@ -1414,41 +1452,103 @@
   }
 
   /* Gourmet Flavor Catalog Grid */
+  .tab-actions-row {
+    margin-bottom: 12px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tab-actions-row h2 {
+    font-size: 1.15rem;
+    font-family: 'Playfair Display', serif;
+    color: var(--gold-light);
+  }
+
+  .tab-actions-row .btn-sm {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    height: 30px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+  }
+
   .flavors-admin-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .flavor-admin-card {
-    border-radius: 8px;
+    border-radius: 6px;
+    background: rgba(43, 15, 69, 0.35);
+    border: 1px solid rgba(212, 175, 55, 0.1);
   }
 
   .flavor-img-box {
-    height: 130px;
+    height: 85px; /* Reduced by 43% from 150px desktop height */
+  }
+
+  .cat-badge {
+    top: 6px;
+    left: 6px;
+    font-size: 0.55rem;
+    padding: 1px 4px;
+    border-radius: 3px;
   }
 
   .flavor-body {
-    padding: 12px;
-    gap: 8px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .flavor-header-line {
+    gap: 4px;
+    align-items: center;
   }
 
   .flavor-header-line h3 {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+  }
+
+  .availability-status {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+    border-radius: 3px;
   }
 
   .flavor-body .notes {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 2.6em; /* fixed height for 2 lines to keep cards aligned */
+    color: var(--text-muted);
   }
 
   .flavor-card-footer {
-    flex-wrap: wrap;
+    display: flex;
     gap: 6px;
+    margin-top: 4px;
   }
 
   .flavor-card-footer .edit-btn,
   .toggle-availability-btn {
     font-size: 0.7rem;
-    padding: 6px 8px;
+    padding: 4px 6px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
   }
 
   /* Login and Auth Cards */
@@ -1493,52 +1593,37 @@
 
 /* Extra Small Phones (iPhone SE / narrow Androids) */
 @media (max-width: 480px) {
-
-  /* Header Stacking to avoid text wraps and clips */
+  /* Header adjustments for extra small screen widths */
   .admin-main-header {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 12px;
-    gap: 8px;
+    padding: 8px 8px;
+    gap: 4px;
   }
 
-  .admin-main-header .header-brand {
-    justify-content: space-between;
-    width: 100%;
+  .admin-main-header .brand-logo {
+    font-size: 1.15rem;
   }
 
-  .admin-main-header .header-actions {
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 8px;
+  .admin-badge {
+    padding: 1px 4px;
+    margin-left: 4px;
   }
 
-  .admin-main-header .realtime-status-pill {
-    display: flex;
-    padding: 3px 8px;
-    font-size: 0.7rem;
+  .admin-badge-pill {
+    font-size: 0.55rem;
   }
 
-  /* Stats Grid forced columns to prevent layout squeeze */
-  .dashboard-stats-strip {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 12px 10px;
+  .header-actions {
+    gap: 4px;
   }
 
-  .stat-card {
-    padding: 10px;
-    gap: 8px;
+  .header-nav-btn {
+    padding: 8px;
   }
 
-  .stat-val {
-    font-size: 1.1rem;
-  }
-
-  .stat-label {
-    font-size: 0.65rem;
+  .sound-nav-btn,
+  .logout-btn {
+    width: 36px;
+    height: 36px;
   }
 
   /* Order Detail Pane styling for tight width */
