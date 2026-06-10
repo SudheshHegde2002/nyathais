@@ -2010,3 +2010,185 @@
   font-size: 0.78rem;
   margin-top: 2px;
 }
+
+/* Order Cancellation Styles */
+.badge-status.cancelled {
+  background: rgba(220, 53, 69, 0.15);
+  color: #ff8b94;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.badge-status.cancellation-requested {
+  background: rgba(255, 159, 64, 0.15);
+  color: #ffb07c;
+  border: 1px solid rgba(255, 159, 64, 0.3);
+}
+
+.order-actions-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-danger-action {
+  background: #dc3545;
+  color: #fff;
+  border: 1px solid #dc3545;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-danger-action:hover {
+  background: #c82333;
+  border-color: #bd2130;
+}
+
+.btn-danger-outline {
+  background: rgba(220, 53, 69, 0.05);
+  color: #ff8b94;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-danger-outline:hover {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.6);
+  color: #fff;
+}
+
+.btn-warning-outline {
+  background: rgba(255, 159, 64, 0.05);
+  color: #ffb07c;
+  border: 1px solid rgba(255, 159, 64, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-warning-outline:hover {
+  background: rgba(255, 159, 64, 0.2);
+  border-color: rgba(255, 159, 64, 0.6);
+  color: #fff;
+}
+
+.cancellation-restricted-notice {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.cancellation-pending-notice {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 159, 64, 0.08);
+  border: 1px solid rgba(255, 159, 64, 0.2);
+  color: #ffb07c;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.cancellation-completed-notice {
+  display: flex;
+  align-items: center;
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  color: #ff8b94;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+/* Shopkeeper Stock Reorder Styles */
+.parlour-stock-card.low-stock {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
+}
+
+.parlour-stock-card.out-of-stock {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+}
+
+.parlour-stock-card .warning-badge {
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.parlour-stock-card .warning-badge.low {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.parlour-stock-card .warning-badge.out {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.parlour-stock-card .qty-val.low {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.parlour-stock-card .qty-val.out {
+  color: #f87171;
+  font-weight: bold;
+}
+
+.order-now-btn {
+  grid-column: span 2;
+  background: linear-gradient(135deg, #d4af37, #aa8418);
+  border: none;
+  color: #1a0820;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.order-now-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.quick-btn.dimmed {
+  opacity: 0.35;
+  pointer-events: none;
+}

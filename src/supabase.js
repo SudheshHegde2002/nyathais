@@ -981,11 +981,15 @@ export const supabaseService = {
     }
   },
 
-  updateOrderStatus: async (orderId, newStatus) => {
+  updateOrderStatus: async (orderId, newStatus, reason = '') => {
     if (isUsingRealSupabase) {
       const { data, error } = await supabase
         .from('orders')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ 
+          status: newStatus, 
+          cancellation_reason: reason || null, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', orderId)
         .select()
         .single();
@@ -1002,6 +1006,9 @@ export const supabaseService = {
       if (oldStatus === newStatus) return order;
 
       order.status = newStatus;
+      if (reason) {
+        order.cancellation_reason = reason;
+      }
       order.updated_at = new Date().toISOString();
 
       const orderItems = db.order_items.filter(item => item.order_id === orderId);
@@ -1009,11 +1016,17 @@ export const supabaseService = {
       const updatedStockByLoc = [...db.stock_by_location];
       const newMovements = [];
 
-      const isPreDispatched = (status) => ['pending', 'accepted', 'preparing'].includes(status);
+      const isPreDispatched = (status) => ['pending', 'submitted', 'accepted', 'preparing', 'ready_for_dispatch', 'cancellation_requested'].includes(status);
+      const isPostWarehouse = (status) => ['dispatched', 'delivered', 'completed'].includes(status);
+      const isDeliveredOrLater = (status) => ['delivered', 'completed'].includes(status);
 
-      // Transition Logic
-      if (isPreDispatched(oldStatus) && newStatus === 'dispatched') {
-        // Physically deduct stock from master batches (leaves the warehouse)
+      const oldIsPreDispatched = isPreDispatched(oldStatus);
+      const newIsPostWarehouse = isPostWarehouse(newStatus);
+      const oldIsDelivered = isDeliveredOrLater(oldStatus);
+      const newIsDelivered = isDeliveredOrLater(newStatus);
+
+      // 1. Physically deduct stock from master batches (leaves the warehouse)
+      if (oldIsPreDispatched && newIsPostWarehouse) {
         for (const item of orderItems) {
           if (!item.allocations) continue;
           for (const alloc of item.allocations) {
@@ -1039,8 +1052,8 @@ export const supabaseService = {
         }
       }
 
-      if (oldStatus === 'dispatched' && newStatus === 'delivered') {
-        // Stock arrives at location
+      // 2. Stock arrives at location parlour
+      if (!oldIsDelivered && newIsDelivered) {
         for (const item of orderItems) {
           if (!item.allocations) continue;
           for (const alloc of item.allocations) {
@@ -1146,7 +1159,8 @@ export const supabaseService = {
         order_id: orderId,
         status: newStatus,
         changed_by: db.currentUser?.user.id || 'auth-user-admin',
-        changed_at: new Date().toISOString()
+        changed_at: new Date().toISOString(),
+        notes: reason || null
       };
       db.order_status_history.push(newHistory);
 

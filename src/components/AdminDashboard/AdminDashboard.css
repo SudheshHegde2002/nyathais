@@ -2221,3 +2221,344 @@
   color: #4bc0c0;
   border-color: rgba(75, 192, 192, 0.2);
 }
+
+/* Order Cancellation Admin Styles */
+.cancellation-requests-review-panel {
+  background: rgba(43, 15, 69, 0.4);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.cancellation-requests-review-panel .panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  padding-bottom: 8px;
+}
+
+.cancellation-requests-review-panel h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gold-light);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.warning-text-gold {
+  color: var(--gold);
+}
+
+.requests-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.cancellation-request-card {
+  background: rgba(26, 8, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancellation-request-card:hover {
+  border-color: rgba(212, 175, 55, 0.2);
+  background: rgba(26, 8, 32, 0.85);
+}
+
+.cancellation-request-card.active {
+  border-color: var(--gold);
+  background: rgba(43, 15, 69, 0.6);
+}
+
+.cancellation-request-card .req-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cancellation-request-card .req-num {
+  font-size: 0.85rem;
+  color: var(--gold-light);
+}
+
+.cancellation-request-card .req-shop-code {
+  font-size: 0.7rem;
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--gold);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.cancellation-request-card .req-shop-name {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  margin: 0 0 6px 0;
+  font-weight: 500;
+}
+
+.cancellation-request-card .req-reason-box {
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.15);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+}
+
+.cancellation-request-card .reason-label {
+  color: #ff8b94;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.cancellation-request-card .reason-text {
+  color: var(--text-main);
+  font-style: italic;
+}
+
+.cancellation-request-card .req-actions-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-approve-cancel {
+  background: #dc3545;
+  color: #fff;
+  border: 1px solid #dc3545;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-approve-cancel:hover {
+  background: #c82333;
+}
+
+.btn-reject-cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reject-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.admin-cancellation-alert-box {
+  background: rgba(255, 159, 64, 0.08);
+  border: 1px solid rgba(255, 159, 64, 0.25);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-left: 3px solid #ff9f40;
+}
+
+.admin-cancellation-alert-box.cancelled {
+  background: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.25);
+  border-left-color: #dc3545;
+}
+
+.admin-cancellation-alert-box .warning-icon {
+  color: #ff9f40;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-cancellation-alert-box .info-icon {
+  color: #ff8b94;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-cancellation-alert-box strong {
+  font-size: 0.9rem;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.admin-cancellation-alert-box p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+  font-style: italic;
+}
+
+.admin-cancellation-alert-box.cancelled p {
+  margin-bottom: 0;
+}
+
+.admin-cancellation-alert-box .alert-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.status-tag.cancellation_requested {
+  background: rgba(255, 159, 64, 0.12);
+  color: #ff9f40;
+  border: 1px solid rgba(255, 159, 64, 0.25);
+}
+
+.status-tag.cancelled {
+  background: rgba(220, 53, 69, 0.12);
+  color: #ff8b94;
+  border: 1px solid rgba(220, 53, 69, 0.25);
+}
+
+.audit-reason {
+  display: block;
+  font-size: 0.78rem;
+  color: #ffb07c;
+  margin: 2px 0;
+  font-style: italic;
+}
+
+/* Mobile Record Cards Styles */
+.mobile-records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mobile-record-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.mobile-record-card.depleted,
+.mobile-record-card.out-of-stock {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.02);
+}
+
+.mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mobile-card-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.mobile-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expand-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.expand-chevron.rotated {
+  transform: rotate(180deg) !important;
+  color: var(--gold);
+}
+
+.mobile-card-details-expanded {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.detail-row .label {
+  color: var(--text-muted);
+}
+
+.detail-row .val {
+  color: var(--text-main);
+  text-align: right;
+}
+
+.mobile-card-actions-wrapper {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-card-actions-wrapper .btn {
+  flex: 1 1 calc(50% - 8px);
+  min-width: 100px;
+  text-align: center;
+  justify-content: center;
+}
+
+.shop-code-badge {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--gold);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  width: fit-content;
+}

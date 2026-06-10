@@ -4,7 +4,8 @@ import {
   LogOut, ShoppingBag, Plus, Edit2, Search, Filter, Clock,
   AlertCircle, Users, User, MapPin, Phone, Mail, Check, ArrowLeft,
   Volume2, VolumeX, Package, TrendingUp, AlertTriangle,
-  RotateCcw, History, ClipboardList, ChevronDown, ChevronUp
+  RotateCcw, ClipboardList, ChevronDown, ChevronUp,
+  Activity, RefreshCw
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
 import { formatDate } from '../../utils/dateFormatter';
@@ -37,6 +38,10 @@ export default function AdminDashboard() {
   const [flavorFilter, setFlavorFilter] = useState('All');
   const [batchStatusFilter, setBatchStatusFilter] = useState('All');
   const [statFilterOverride, setStatFilterOverride] = useState(null);
+  const [flavorStockFilter, setFlavorStockFilter] = useState('All'); // 'All', 'low_stock', 'out_of_stock'
+  const [locationStockFilter, setLocationStockFilter] = useState('All'); // 'All', 'low_stock'
+  const [selectedInventoryCenterSubTab, setSelectedInventoryCenterSubTab] = useState('summary'); // 'summary', 'batches', 'forecast', 'movements'
+  const [selectedAnalyticsSubTab, setSelectedAnalyticsSubTab] = useState('performance'); // 'performance', 'flavors', 'health'
 
   // Selected details
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -54,6 +59,11 @@ export default function AdminDashboard() {
   const [isReturnStockModalOpen, setIsReturnStockModalOpen] = useState(false);
 
   const [expandedShopIds, setExpandedShopIds] = useState({});
+  const [expandedInventorySummaryIds, setExpandedInventorySummaryIds] = useState({});
+  const [expandedWarehouseBatchIds, setExpandedWarehouseBatchIds] = useState({});
+  const [expandedProductionRecommendIds, setExpandedProductionRecommendIds] = useState({});
+  const [expandedStockMovementIds, setExpandedStockMovementIds] = useState({});
+  const [expandedParlourStockIds, setExpandedParlourStockIds] = useState({});
   const [editingShop, setEditingShop] = useState(null);
   const [editingFlavor, setEditingFlavor] = useState(null);
   const [editingBatch, setEditingBatch] = useState(null);
@@ -197,6 +207,16 @@ export default function AdminDashboard() {
       setBatches(batchesList);
       setLocationStock(locStockList);
       setMovements(movementsList);
+
+      // Keep selected order info in sync
+      if (selectedOrder) {
+        const updatedOrder = ordersList.find(o => o.id === selectedOrder.id);
+        if (updatedOrder && (updatedOrder.status !== selectedOrder.status || updatedOrder.cancellation_reason !== selectedOrder.cancellation_reason)) {
+          setSelectedOrder(updatedOrder);
+          const history = await supabaseService.getOrderHistory(selectedOrder.id);
+          setOrderHistory(history);
+        }
+      }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     }
@@ -253,7 +273,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Realtime subscription
+  // Realtime subscription, polling, and window storage events
   useEffect(() => {
     if (!userSession) return;
 
@@ -273,7 +293,29 @@ export default function AdminDashboard() {
       }
     });
 
-    return () => unsubscribe();
+    // Polling interval (5 seconds) as fallback/cross-browser sync
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 5000);
+
+    // Storage event listener for instant multi-tab local sync
+    const handleStorageChange = (e) => {
+      if (
+        e.key === 'nyathiyas_orders' || 
+        e.key === 'nyathiyas_order_items' || 
+        e.key === 'nyathiyas_batches' ||
+        e.key === 'nyathiyas_order_history'
+      ) {
+        loadDashboardData();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSession, selectedOrder, soundEnabled]);
 
@@ -285,14 +327,14 @@ export default function AdminDashboard() {
   }, [selectedOrder]);
 
   // Update order status handler
-  const handleUpdateStatus = async (orderId, newStatus) => {
+  const handleUpdateStatus = async (orderId, newStatus, reason = '') => {
     try {
-      const updated = await supabaseService.updateOrderStatus(orderId, newStatus);
+      const updated = await supabaseService.updateOrderStatus(orderId, newStatus, reason);
       supabaseService.triggerLocalOrderChange('UPDATE', updated);
       loadDashboardData();
 
       if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+        setSelectedOrder(prev => ({ ...prev, status: newStatus, cancellation_reason: reason }));
         const history = await supabaseService.getOrderHistory(orderId);
         setOrderHistory(history);
       }
@@ -424,7 +466,7 @@ export default function AdminDashboard() {
 
   // Batch Handlers
   const handleOpenBatchModal = (batch = null) => {
-    if (batch) {
+    if (batch && batch.id) {
       setEditingBatch(batch);
       setBatchForm({
         batch_number: batch.batch_number,
@@ -439,16 +481,22 @@ export default function AdminDashboard() {
       });
     } else {
       setEditingBatch(null);
+      const selectedFlavorId = batch?.flavor_id || flavors[0]?.id || '';
+      const selectedFlavor = flavors.find(f => f.id === selectedFlavorId);
+      const flavorPrefix = selectedFlavor ? selectedFlavor.flavor_name.substring(0, 3).toUpperCase() : 'FLV';
+      const dateStr = new Date().toISOString().substring(2, 10).replace(/-/g, '');
+      const batchCode = `NY-${flavorPrefix}-${dateStr}-${Math.floor(100 + Math.random() * 900)}`;
+
       setBatchForm({
-        batch_number: '',
-        flavor_id: flavors[0]?.id || '',
+        batch_number: batch?.batch_number || batchCode,
+        flavor_id: selectedFlavorId,
         manufactured_date: new Date().toISOString().substring(0, 10),
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10),
-        quantity_received: 100,
+        quantity_received: batch?.quantity_received || 100,
         unit: 'Tub (5L)',
         min_order_qty: 5,
         reorder_point: 15,
-        notes: ''
+        notes: batch?.notes || 'Triggered from Production Planner recommendation.'
       });
     }
     setIsBatchModalOpen(true);
@@ -483,6 +531,8 @@ export default function AdminDashboard() {
   const handleOpenAdjustStockModal = (batch) => {
     setAdjustStockForm({
       batch_id: batch.id,
+      batch_number: batch.batch_number,
+      flavor_name: batch.flavors?.flavor_name || '',
       quantity_change: 0,
       type: 'adjustment',
       notes: ''
@@ -584,6 +634,41 @@ export default function AdminDashboard() {
     }));
   };
 
+  const toggleInventorySummaryExpand = (id) => {
+    setExpandedInventorySummaryIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const toggleWarehouseBatchExpand = (id) => {
+    setExpandedWarehouseBatchIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const toggleProductionRecommendExpand = (id) => {
+    setExpandedProductionRecommendIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const toggleStockMovementExpand = (id) => {
+    setExpandedStockMovementIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const toggleParlourStockExpand = (id) => {
+    setExpandedParlourStockIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
   const handleStatCardClick = (filterType) => {
     if (statFilterOverride === filterType) {
       setStatFilterOverride(null);
@@ -606,16 +691,32 @@ export default function AdminDashboard() {
         setActiveTab('shops');
         break;
       case 'total_tubs':
-        setActiveTab('inventory');
-        setBatchStatusFilter('All');
+        setActiveTab('inventory_center');
+        setSelectedInventoryCenterSubTab('summary');
+        setFlavorStockFilter('All');
         break;
-      case 'low_stock_batches':
-        setActiveTab('inventory');
-        setBatchStatusFilter('low_stock');
+      case 'low_stock_flavors':
+        setActiveTab('inventory_center');
+        setSelectedInventoryCenterSubTab('summary');
+        setFlavorStockFilter('low_stock');
+        break;
+      case 'out_of_stock_flavors':
+        setActiveTab('inventory_center');
+        setSelectedInventoryCenterSubTab('summary');
+        setFlavorStockFilter('out_of_stock');
+        break;
+      case 'reorder_requests':
+        setActiveTab('locations');
+        setLocationStockFilter('low_stock');
         break;
       case 'expiring_soon_batches':
-        setActiveTab('inventory');
+        setActiveTab('inventory_center');
+        setSelectedInventoryCenterSubTab('batches');
         setBatchStatusFilter('expiring');
+        break;
+      case 'inventory_health':
+        setActiveTab('analytics');
+        setSelectedAnalyticsSubTab('health');
         break;
       default:
         break;
@@ -628,34 +729,98 @@ export default function AdminDashboard() {
 
     const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === todayStr);
     const pendingCount = orders.filter(o => o.status === 'pending').length;
+    const activeShopsCount = shops.filter(s => s.active).length;
+    const totalTubsCount = batches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_on_hand : 0), 0);
 
-    // Calculate inventory statistics
-    const activeBatches = batches.filter(b => b.status === 'active' && new Date(b.expiry_date) > new Date());
-    
-    // Low stock count (active batches under reorder point)
-    const lowStockCount = activeBatches.filter(b => b.stock_remaining < b.reorder_point).length;
+    // Calculate flavor-level warehouse stock stats
+    const flavorStats = flavors.map(flavor => {
+      const flavorBatches = batches.filter(b => b.flavor_id === flavor.id);
+      const available = flavorBatches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_remaining : 0), 0);
+      const reserved = flavorBatches.reduce((sum, b) => sum + b.stock_allocated, 0);
+      return { flavor, available, reserved };
+    });
+
+    const lowStockFlavorsCount = flavorStats.filter(f => f.available > 0 && f.available <= 20).length;
+    const outOfStockFlavorsCount = flavorStats.filter(f => f.available === 0).length;
+
+    // Reorder requests from parlour stock records needing replenishment (stock_qty <= 5)
+    const reorderRequestsCount = locationStock.filter(loc => loc.stock_qty <= 5).length;
 
     // Expiring soon count (active batches expiring in next 10 days)
+    const activeBatches = batches.filter(b => b.status === 'active' && new Date(b.expiry_date) > new Date());
     const expiringSoonCount = activeBatches.filter(b => {
       const expiry = new Date(b.expiry_date);
       const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
       return diffDays >= 0 && diffDays <= 10;
     }).length;
 
-    const activeShopsCount = shops.filter(s => s.active).length;
-    const totalTubsCount = batches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_on_hand : 0), 0);
+    // Inventory Health Pct: (Healthy Flavors / Total Flavors) * 100
+    const healthyFlavorsCount = flavorStats.filter(f => f.available > 20).length;
+    const totalFlavorsCount = flavors.length || 1;
+    const inventoryHealthPct = Math.round((healthyFlavorsCount / totalFlavorsCount) * 100);
 
     return {
       todayCount: todayOrders.length,
       pendingCount,
-      lowStockCount,
-      expiringSoonCount,
       activeShopsCount,
-      totalTubsCount
+      totalTubsCount,
+      lowStockFlavorsCount,
+      outOfStockFlavorsCount,
+      reorderRequestsCount,
+      expiringSoonCount,
+      inventoryHealthPct
     };
   };
 
   const stats = getStats();
+
+  const getFlavorInventoryStats = () => {
+    return flavors.map(flavor => {
+      const flavorBatches = batches.filter(b => b.flavor_id === flavor.id);
+      const available = flavorBatches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_remaining : 0), 0);
+      const reserved = flavorBatches.reduce((sum, b) => sum + b.stock_allocated, 0);
+      
+      let dispatched = 0;
+      orders.forEach(order => {
+        if (['dispatched', 'delivered', 'completed'].includes(order.status)) {
+          const item = order.order_items?.find(i => i.flavor_id === flavor.id);
+          if (item) {
+            dispatched += item.quantity;
+          }
+        }
+      });
+
+      const activeBatches = flavorBatches.filter(b => b.status === 'active' && b.stock_remaining > 0);
+      let nearestExpiryDays = null;
+      if (activeBatches.length > 0) {
+        const expiries = activeBatches.map(b => new Date(b.expiry_date));
+        const minExpiry = new Date(Math.min(...expiries));
+        nearestExpiryDays = Math.ceil((minExpiry - new Date()) / (1000 * 60 * 60 * 24));
+      }
+
+      let status = 'Healthy';
+      if (available === 0) {
+        status = 'Out of Stock';
+      } else if (available <= 20) {
+        status = 'Low Stock';
+      }
+
+      return {
+        flavor,
+        available,
+        reserved,
+        dispatched,
+        nearestExpiryDays,
+        status
+      };
+    });
+  };
+
+  const getLatestActiveBatch = (flavorId) => {
+    const flavorBatches = batches.filter(b => b.flavor_id === flavorId && b.status === 'active');
+    if (flavorBatches.length === 0) return null;
+    return [...flavorBatches].sort((a, b) => new Date(b.manufactured_date) - new Date(a.manufactured_date))[0];
+  };
 
   // Filters logic for Orders
   const filteredOrders = orders.filter(o => {
@@ -679,39 +844,7 @@ export default function AdminDashboard() {
     return matchesSearch && matchesStatus && matchesDate && matchesShop;
   });
 
-  // Filters for Batches
-  const filteredBatches = batches.filter(b => {
-    const flavor = b.flavors || {};
-    const matchesSearch = b.batch_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      flavor.flavor_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFlavor = flavorFilter === 'All' || b.flavor_id === flavorFilter;
-    
-    // Status filter
-    const expiry = new Date(b.expiry_date);
-    const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
-    
-    let matchesStatus = true;
-    if (statFilterOverride === 'low_stock_batches') {
-      matchesStatus = b.stock_remaining < b.reorder_point && b.stock_remaining > 0 && b.status === 'active';
-    } else if (statFilterOverride === 'expiring_soon_batches') {
-      matchesStatus = diffDays >= 0 && diffDays <= 10 && b.status === 'active';
-    } else {
-      // Use dropdown filter if no stat override or if override is 'total_tubs'
-      if (batchStatusFilter === 'expired') {
-        matchesStatus = diffDays < 0;
-      } else if (batchStatusFilter === 'expiring') {
-        matchesStatus = diffDays >= 0 && diffDays <= 10 && b.status === 'active';
-      } else if (batchStatusFilter === 'low_stock') {
-        matchesStatus = b.stock_remaining < b.reorder_point && b.stock_remaining > 0 && b.status === 'active';
-      } else if (batchStatusFilter === 'depleted') {
-        matchesStatus = b.status === 'depleted' || b.stock_on_hand === 0;
-      } else if (batchStatusFilter === 'active') {
-        matchesStatus = b.status === 'active' && diffDays > 10;
-      }
-    }
 
-    return matchesSearch && matchesFlavor && matchesStatus;
-  });
 
   // Filters for Shops
   const filteredShops = shops.filter(shop => {
@@ -740,23 +873,15 @@ export default function AdminDashboard() {
     const matchesShop = shopFilter === 'All' || l.shop_id === shopFilter;
     const matchesFlavor = flavorFilter === 'All' || l.flavor_id === flavorFilter;
 
-    return matchesSearch && matchesShop && matchesFlavor;
+    let matchesStockFilter = true;
+    if (locationStockFilter === 'low_stock') {
+      matchesStockFilter = l.stock_qty <= 5;
+    }
+
+    return matchesSearch && matchesShop && matchesFlavor && matchesStockFilter;
   });
 
-  // Filters for Movements Log
-  const filteredMovements = movements.filter(m => {
-    const flavor = m.flavors || {};
-    const batch = m.batches || {};
 
-    const matchesSearch = flavor.flavor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      batch.batch_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.notes && m.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesShop = shopFilter === 'All' || m.shop_id === shopFilter || (shopFilter === 'warehouse' && m.shop_id === null);
-    const matchesFlavor = flavorFilter === 'All' || m.flavor_id === flavorFilter;
-
-    return matchesSearch && matchesShop && matchesFlavor;
-  });
 
   // Render Loader
   if (loading) {
@@ -842,7 +967,15 @@ export default function AdminDashboard() {
       {/* HEADER */}
       <header className="admin-main-header">
         <div className="header-brand">
-          <span className="brand-logo" onClick={() => navigate('/')}>Nyathiya's</span>
+          <span className="brand-logo" onClick={() => {
+            navigate('/admin');
+            setActiveTab('orders');
+            setSelectedOrder(null);
+            setSearchQuery('');
+            setStatFilterOverride(null);
+            setStatusFilter('All');
+            setShopFilter('All');
+          }}>Nyathiya's</span>
           <div className="admin-badge">
             <span className="admin-badge-pill">ADMIN</span>
           </div>
@@ -863,27 +996,27 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            className={`header-nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('inventory'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); }}
+            className={`header-nav-btn ${activeTab === 'inventory_center' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('inventory_center'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); }}
           >
             <Package size={18} />
-            <span>Warehouse</span>
+            <span>Inventory Center</span>
           </button>
 
           <button
             className={`header-nav-btn ${activeTab === 'locations' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('locations'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); }}
+            onClick={() => { setActiveTab('locations'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); setLocationStockFilter('All'); }}
           >
             <MapPin size={18} />
             <span>Location Stock</span>
           </button>
 
           <button
-            className={`header-nav-btn ${activeTab === 'movements' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('movements'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); }}
+            className={`header-nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('analytics'); setSelectedOrder(null); setSearchQuery(''); setStatFilterOverride(null); }}
           >
-            <History size={18} />
-            <span>Audit Trail</span>
+            <Activity size={18} />
+            <span>Analytics Hub</span>
           </button>
 
           <button
@@ -979,17 +1112,47 @@ export default function AdminDashboard() {
         </button>
 
         <button 
-          className={`stat-card alert-stock interactive-card ${statFilterOverride === 'low_stock_batches' ? 'active' : ''}`}
-          onClick={() => handleStatCardClick('low_stock_batches')}
-          title="Filter by Low Stock Batches"
+          className={`stat-card alert-stock interactive-card ${statFilterOverride === 'low_stock_flavors' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('low_stock_flavors')}
+          title="Filter by Low Stock Flavors"
           type="button"
         >
-          <div className={`stat-icon-wrap ${stats.lowStockCount > 0 ? 'red-alert' : 'green-ok'}`}>
+          <div className={`stat-icon-wrap ${stats.lowStockFlavorsCount > 0 ? 'orange-alert' : 'green-ok'}`}>
             <AlertTriangle size={20} />
           </div>
           <div className="stat-info">
-            <span className="stat-val">{stats.lowStockCount}</span>
-            <span className="stat-label">Low Stock Batches</span>
+            <span className="stat-val">{stats.lowStockFlavorsCount}</span>
+            <span className="stat-label">Low Stock Flavors</span>
+          </div>
+        </button>
+
+        <button 
+          className={`stat-card alert-stock interactive-card ${statFilterOverride === 'out_of_stock_flavors' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('out_of_stock_flavors')}
+          title="Filter by Out of Stock Flavors"
+          type="button"
+        >
+          <div className={`stat-icon-wrap ${stats.outOfStockFlavorsCount > 0 ? 'red-alert' : 'green-ok'}`}>
+            <AlertCircle size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-val">{stats.outOfStockFlavorsCount}</span>
+            <span className="stat-label">Out of Stock Flavors</span>
+          </div>
+        </button>
+
+        <button 
+          className={`stat-card interactive-card ${statFilterOverride === 'reorder_requests' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('reorder_requests')}
+          title="Filter by Parlour Reorders"
+          type="button"
+        >
+          <div className="stat-icon-wrap purple">
+            <RefreshCw size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-val">{stats.reorderRequestsCount}</span>
+            <span className="stat-label">Reorder Requests</span>
           </div>
         </button>
 
@@ -1004,7 +1167,22 @@ export default function AdminDashboard() {
           </div>
           <div className="stat-info">
             <span className="stat-val">{stats.expiringSoonCount}</span>
-            <span className="stat-label">Expiring Soon (10d)</span>
+            <span className="stat-label">Expiring Soon</span>
+          </div>
+        </button>
+
+        <button 
+          className={`stat-card interactive-card ${statFilterOverride === 'inventory_health' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('inventory_health')}
+          title="Filter by Inventory Health & Analytics"
+          type="button"
+        >
+          <div className="stat-icon-wrap green-ok">
+            <Activity size={20} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-val">{stats.inventoryHealthPct}%</span>
+            <span className="stat-label">Inventory Health</span>
           </div>
         </button>
       </section>
@@ -1039,6 +1217,8 @@ export default function AdminDashboard() {
                       <option value="Preparing">Preparing</option>
                       <option value="Dispatched">Dispatched</option>
                       <option value="Delivered">Delivered</option>
+                      <option value="Cancellation_Requested">Cancellation Requested</option>
+                      <option value="Cancelled">Cancelled</option>
                     </select>
                   </div>
 
@@ -1053,6 +1233,53 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Cancellation Requests Pending Review Panel */}
+              {orders.filter(o => o.status === 'cancellation_requested').length > 0 && (
+                <div className="cancellation-requests-review-panel">
+                  <div className="panel-title-row">
+                    <AlertTriangle size={16} className="warning-text-gold" />
+                    <h3>Cancellation Requests ({orders.filter(o => o.status === 'cancellation_requested').length})</h3>
+                  </div>
+                  <div className="requests-stack">
+                    {orders.filter(o => o.status === 'cancellation_requested').map(req => {
+                      const shop = req.shops || {};
+                      const isSelected = selectedOrder && selectedOrder.id === req.id;
+                      return (
+                        <div 
+                          key={req.id} 
+                          className={`cancellation-request-card ${isSelected ? 'active' : ''}`}
+                          onClick={() => setSelectedOrder(req)}
+                        >
+                          <div className="req-header">
+                            <strong className="req-num">{req.order_number}</strong>
+                            <span className="req-shop-code">{shop.shop_code}</span>
+                          </div>
+                          <p className="req-shop-name">{shop.shop_name}</p>
+                          <div className="req-reason-box">
+                            <span className="reason-label">Reason:</span>
+                            <span className="reason-text">"{req.cancellation_reason || 'No reason provided'}"</span>
+                          </div>
+                          <div className="req-actions-row" onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              className="btn-approve-cancel"
+                              onClick={() => handleUpdateStatus(req.id, 'cancelled', req.cancellation_reason)}
+                            >
+                              Approve Cancel
+                            </button>
+                            <button 
+                              className="btn-reject-cancel"
+                              onClick={() => handleUpdateStatus(req.id, 'accepted', 'Cancellation request rejected by Admin')}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {filteredOrders.length === 0 ? (
                 <div className="empty-results-box">
@@ -1104,7 +1331,7 @@ export default function AdminDashboard() {
                       <label>Action Status:</label>
                       <select
                         value={selectedOrder.status}
-                        onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
+                        onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value, selectedOrder.cancellation_reason)}
                         className={`status-dropdown-select ${selectedOrder.status}`}
                       >
                         <option value="pending">Pending Approval</option>
@@ -1113,10 +1340,45 @@ export default function AdminDashboard() {
                         <option value="dispatched">Dispatch Order (Deduct Stock)</option>
                         <option value="delivered">Set to Delivered (Add Store Stock)</option>
                         <option value="rejected">Reject Order</option>
+                        <option value="cancellation_requested">Cancellation Requested</option>
                         <option value="cancelled">Cancel Order</option>
                       </select>
                     </div>
                   </div>
+
+                  {selectedOrder.status === 'cancellation_requested' && (
+                    <div className="admin-cancellation-alert-box">
+                      <AlertTriangle size={18} className="warning-icon" />
+                      <div>
+                        <strong>Cancellation Requested by Store</strong>
+                        <p>Reason: "{selectedOrder.cancellation_reason || 'No reason specified'}"</p>
+                        <div className="alert-buttons">
+                          <button 
+                            className="btn btn-danger btn-xs"
+                            onClick={() => handleUpdateStatus(selectedOrder.id, 'cancelled', selectedOrder.cancellation_reason)}
+                          >
+                            Approve Cancellation (Release Stock)
+                          </button>
+                          <button 
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => handleUpdateStatus(selectedOrder.id, 'accepted', 'Cancellation request rejected by Admin')}
+                          >
+                            Reject Request (Keep Active)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedOrder.status === 'cancelled' && (
+                    <div className="admin-cancellation-alert-box cancelled">
+                      <AlertCircle size={18} className="info-icon" />
+                      <div>
+                        <strong>Order Cancelled</strong>
+                        <p>Reason: "{selectedOrder.cancellation_reason || 'No reason specified'}"</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="details-grid">
                     {/* Destination Store */}
@@ -1184,8 +1446,11 @@ export default function AdminDashboard() {
                             <span className="bullet"></span>
                             <div className="step-info">
                               <strong className="status-name uppercase">{history.status}</strong>
+                              {history.notes && (
+                                <span className="audit-reason">Reason/Note: "{history.notes}"</span>
+                              )}
                               <span className="audit-meta">
-                                Changed At: {formatDate(history.changed_at)} by System / Admin
+                                Changed At: {formatDate(history.changed_at)}
                               </span>
                             </div>
                           </div>
@@ -1206,76 +1471,534 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TABS 2: WAREHOUSE & BATCHES */}
-        {activeTab === 'inventory' && (
+        {/* TABS 2: UNIFIED INVENTORY CENTER */}
+        {activeTab === 'inventory_center' && (
           <div className="inventory-mgmt-tab fade-in-up">
-            <div className="tab-actions-row">
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <h2>Master Warehouse Inventory</h2>
-                <div className="search-box inline-search">
-                  <Search size={16} className="search-icon" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search batch # or flavor..."
-                  />
-                </div>
-                <div className="select-wrapper">
-                  <Filter size={14} className="filter-icon" />
-                  <select value={flavorFilter} onChange={(e) => setFlavorFilter(e.target.value)}>
-                    <option value="All">All Flavors</option>
-                    {flavors.map(f => (
-                      <option key={f.id} value={f.id}>{f.flavor_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="select-wrapper">
-                  <Filter size={14} className="filter-icon" />
-                  <select value={batchStatusFilter} onChange={(e) => setBatchStatusFilter(e.target.value)}>
-                    <option value="All">All Statuses</option>
-                    <option value="active">Active & Healthy</option>
-                    <option value="expiring">Expiring Soon (10d)</option>
-                    <option value="expired">Expired</option>
-                    <option value="low_stock">Low Stock</option>
-                    <option value="depleted">Depleted / Out of Stock</option>
-                  </select>
-                </div>
-              </div>
+            <div className="tab-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>Warehouse Inventory Intelligence</h2>
               <button className="btn btn-primary btn-sm" onClick={() => handleOpenBatchModal()}>
                 <Plus size={16} style={{ marginRight: '6px' }} /> Create New Stock Batch
               </button>
             </div>
 
-            <div className="admin-table-container">
-              <table className="admin-data-table">
-                <thead>
-                  <tr>
-                    <th>Batch Code</th>
-                    <th>Flavor Name</th>
-                    <th>Mfg Date</th>
-                    <th>Expiry Date</th>
-                    <th>Total Received</th>
-                    <th>On Hand (Warehouse)</th>
-                    <th>Allocated (Pending)</th>
-                    <th>Available (Remaining)</th>
-                    <th>Reorder Pt</th>
-                    <th>Unit</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBatches.length === 0 ? (
-                    <tr>
-                      <td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                        No warehouse stock batches found matching the filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredBatches.map(batch => {
+            {/* Sub navigation */}
+            <div className="sub-tabs-nav" style={{ display: 'flex', gap: '12px', borderBottom: '1px solid rgba(212, 175, 55, 0.15)', marginBottom: '20px', paddingBottom: '10px' }}>
+              <button 
+                className={`sub-tab-btn ${selectedInventoryCenterSubTab === 'summary' ? 'active' : ''}`}
+                onClick={() => setSelectedInventoryCenterSubTab('summary')}
+                style={{
+                  background: selectedInventoryCenterSubTab === 'summary' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedInventoryCenterSubTab === 'summary' ? 'var(--gold)' : 'transparent',
+                  color: selectedInventoryCenterSubTab === 'summary' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Flavor Stock Summary
+              </button>
+              <button 
+                className={`sub-tab-btn ${selectedInventoryCenterSubTab === 'batches' ? 'active' : ''}`}
+                onClick={() => setSelectedInventoryCenterSubTab('batches')}
+                style={{
+                  background: selectedInventoryCenterSubTab === 'batches' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedInventoryCenterSubTab === 'batches' ? 'var(--gold)' : 'transparent',
+                  color: selectedInventoryCenterSubTab === 'batches' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Warehouse Batches
+              </button>
+              <button 
+                className={`sub-tab-btn ${selectedInventoryCenterSubTab === 'forecast' ? 'active' : ''}`}
+                onClick={() => setSelectedInventoryCenterSubTab('forecast')}
+                style={{
+                  background: selectedInventoryCenterSubTab === 'forecast' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedInventoryCenterSubTab === 'forecast' ? 'var(--gold)' : 'transparent',
+                  color: selectedInventoryCenterSubTab === 'forecast' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Production Planning & Forecast
+              </button>
+              <button 
+                className={`sub-tab-btn ${selectedInventoryCenterSubTab === 'movements' ? 'active' : ''}`}
+                onClick={() => setSelectedInventoryCenterSubTab('movements')}
+                style={{
+                  background: selectedInventoryCenterSubTab === 'movements' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedInventoryCenterSubTab === 'movements' ? 'var(--gold)' : 'transparent',
+                  color: selectedInventoryCenterSubTab === 'movements' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Warehouse Audit Trail
+              </button>
+            </div>
+
+            {/* SUBTAB 1: FLAVOR SUMMARY */}
+            {selectedInventoryCenterSubTab === 'summary' && (
+              <div className="flavor-summary-view fade-in-up">
+                <div className="tab-actions-row" style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '16px' }}>
+                  <div className="search-box inline-search">
+                    <Search size={16} className="search-icon" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search flavor..."
+                    />
+                  </div>
+                  <div className="select-wrapper">
+                    <Filter size={14} className="filter-icon" />
+                    <select value={flavorStockFilter} onChange={(e) => setFlavorStockFilter(e.target.value)}>
+                      <option value="All">All Stock Levels</option>
+                      <option value="low_stock">{'Low Stock (<= 20 Tubs)'}</option>
+                      <option value="out_of_stock">Out of Stock (0 Tubs)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* DESKTOP TABLE VIEW */}
+                <div className="admin-table-container desktop-only">
+                  <table className="admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Flavor Name</th>
+                        <th>Category</th>
+                        <th>Available (Warehouse)</th>
+                        <th>Reserved (Allocated)</th>
+                        <th>Dispatched (Cumulative)</th>
+                        <th>Nearest Expiry</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const flavorStatsList = getFlavorInventoryStats().filter(item => {
+                          const matchesSearch = item.flavor.flavor_name.toLowerCase().includes(searchQuery.toLowerCase());
+                          let matchesStatus = true;
+                          if (flavorStockFilter === 'low_stock') {
+                            matchesStatus = item.available > 0 && item.available <= 20;
+                          } else if (flavorStockFilter === 'out_of_stock') {
+                            matchesStatus = item.available === 0;
+                          }
+                          return matchesSearch && matchesStatus;
+                        });
+
+                        if (flavorStatsList.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                No flavors matching the filter.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return flavorStatsList.map(item => {
+                          const latestBatch = getLatestActiveBatch(item.flavor.id);
+                          
+                          let statusPill = <span className="status-dot-pill active">Healthy</span>;
+                          if (item.available === 0) {
+                            statusPill = <span className="status-dot-pill error">Out of Stock</span>;
+                          } else if (item.available <= 20) {
+                            statusPill = <span className="status-dot-pill warning">Low Stock</span>;
+                          } else if (item.nearestExpiryDays !== null && item.nearestExpiryDays <= 10) {
+                            statusPill = <span className="status-dot-pill warning-orange">Expiring Soon</span>;
+                          }
+
+                          return (
+                            <tr key={item.flavor.id}>
+                              <td><strong>{item.flavor.flavor_name}</strong></td>
+                              <td><span className="category-badge">{item.flavor.category}</span></td>
+                              <td>
+                                <strong style={{ color: item.available === 0 ? 'var(--accent)' : item.available <= 20 ? 'var(--gold)' : '#4bc0c0' }}>
+                                  {item.available} Tubs
+                                </strong>
+                              </td>
+                              <td style={{ color: item.reserved > 0 ? 'var(--gold-light)' : 'inherit' }}>
+                                {item.reserved} Tubs
+                              </td>
+                              <td>{item.dispatched} Tubs</td>
+                              <td className={item.nearestExpiryDays !== null && item.nearestExpiryDays <= 10 ? 'date-critical' : ''}>
+                                {item.nearestExpiryDays !== null ? `${item.nearestExpiryDays} days left` : 'N/A'}
+                              </td>
+                              <td>{statusPill}</td>
+                              <td>
+                                <div className="table-actions-cell" style={{ justifyContent: 'center', gap: '8px' }}>
+                                  {latestBatch ? (
+                                    <>
+                                      <button 
+                                        className="btn btn-secondary btn-xs" 
+                                        onClick={() => handleOpenAdjustStockModal(latestBatch)}
+                                        title="Quickly Adjust Available Stock"
+                                      >
+                                        Adjust Stock
+                                      </button>
+                                      <button 
+                                        className="btn btn-secondary btn-xs" 
+                                        onClick={() => handleOpenBatchModal(latestBatch)}
+                                        title="Manage Allocations & Reservation details"
+                                      >
+                                        Reserve Details
+                                      </button>
+                                      <button 
+                                        className="btn btn-secondary btn-xs" 
+                                        style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+                                        onClick={() => handleToggleBatchStatus(latestBatch)}
+                                        title="Mark the latest active batch of this flavor depleted/expired"
+                                      >
+                                        Mark Expired
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No Active Batch</span>
+                                  )}
+                                  <button 
+                                    className="btn btn-primary btn-xs" 
+                                    onClick={() => handleOpenBatchModal({ flavor_id: item.flavor.id })}
+                                    title="Add new production batch for this flavor"
+                                  >
+                                    Add Batch
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARD VIEW */}
+                <div className="mobile-records-list mobile-only">
+                  {(() => {
+                    const flavorStatsList = getFlavorInventoryStats().filter(item => {
+                      const matchesSearch = item.flavor.flavor_name.toLowerCase().includes(searchQuery.toLowerCase());
+                      let matchesStatus = true;
+                      if (flavorStockFilter === 'low_stock') {
+                        matchesStatus = item.available > 0 && item.available <= 20;
+                      } else if (flavorStockFilter === 'out_of_stock') {
+                        matchesStatus = item.available === 0;
+                      }
+                      return matchesSearch && matchesStatus;
+                    });
+
+                    if (flavorStatsList.length === 0) {
+                      return (
+                        <div className="mobile-empty-state">
+                          No flavors matching the filter.
+                        </div>
+                      );
+                    }
+
+                    return flavorStatsList.map(item => {
+                      const latestBatch = getLatestActiveBatch(item.flavor.id);
+                      const isExpanded = !!expandedInventorySummaryIds[item.flavor.id];
+                      
+                      let statusPill = <span className="status-dot-pill active">Healthy</span>;
+                      if (item.available === 0) {
+                        statusPill = <span className="status-dot-pill error">Out of Stock</span>;
+                      } else if (item.available <= 20) {
+                        statusPill = <span className="status-dot-pill warning">Low Stock</span>;
+                      } else if (item.nearestExpiryDays !== null && item.nearestExpiryDays <= 10) {
+                        statusPill = <span className="status-dot-pill warning-orange">Expiring Soon</span>;
+                      }
+
+                      return (
+                        <div key={item.flavor.id} className={`mobile-record-card ${item.available === 0 ? 'out-of-stock' : ''}`}>
+                          <div className="mobile-card-header" onClick={() => toggleInventorySummaryExpand(item.flavor.id)}>
+                            <div className="mobile-card-title-wrap">
+                              <span className="category-badge">{item.flavor.category}</span>
+                              <h3 className="mobile-card-title">{item.flavor.flavor_name}</h3>
+                            </div>
+                            <div className="mobile-card-header-right">
+                              <strong style={{ color: item.available === 0 ? 'var(--accent)' : item.available <= 20 ? 'var(--gold)' : '#4bc0c0' }}>
+                                {item.available} Tubs
+                              </strong>
+                              <ChevronDown className={`expand-chevron ${isExpanded ? 'rotated' : ''}`} size={16} />
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mobile-card-details-expanded">
+                              <div className="detail-row">
+                                <span className="label">Reserved (Allocated):</span>
+                                <span className="val">{item.reserved} Tubs</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Dispatched (Cumulative):</span>
+                                <span className="val">{item.dispatched} Tubs</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Nearest Expiry:</span>
+                                <span className={`val ${item.nearestExpiryDays !== null && item.nearestExpiryDays <= 10 ? 'date-critical' : ''}`}>
+                                  {item.nearestExpiryDays !== null ? `${item.nearestExpiryDays} days left` : 'N/A'}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Status:</span>
+                                <span className="val">{statusPill}</span>
+                              </div>
+
+                              <div className="mobile-card-actions-wrapper">
+                                {latestBatch ? (
+                                  <>
+                                    <button 
+                                      className="btn btn-secondary btn-sm" 
+                                      onClick={() => handleOpenAdjustStockModal(latestBatch)}
+                                    >
+                                      Adjust Stock
+                                    </button>
+                                    <button 
+                                      className="btn btn-secondary btn-sm" 
+                                      onClick={() => handleOpenBatchModal(latestBatch)}
+                                    >
+                                      Reserve Details
+                                    </button>
+                                    <button 
+                                      className="btn btn-secondary btn-sm" 
+                                      style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+                                      onClick={() => handleToggleBatchStatus(latestBatch)}
+                                    >
+                                      Mark Expired
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No Active Batch</span>
+                                )}
+                                <button 
+                                  className="btn btn-primary btn-sm" 
+                                  onClick={() => handleOpenBatchModal({ flavor_id: item.flavor.id })}
+                                >
+                                  Add Batch
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 2: WAREHOUSE BATCHES (ORIGINAL VIEW) */}
+            {selectedInventoryCenterSubTab === 'batches' && (
+              <div className="warehouse-batches-view fade-in-up">
+                <div className="tab-actions-row" style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '16px' }}>
+                  <div className="search-box inline-search">
+                    <Search size={16} className="search-icon" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search batch # or flavor..."
+                    />
+                  </div>
+                  <div className="select-wrapper">
+                    <Filter size={14} className="filter-icon" />
+                    <select value={flavorFilter} onChange={(e) => setFlavorFilter(e.target.value)}>
+                      <option value="All">All Flavors</option>
+                      {flavors.map(f => (
+                        <option key={f.id} value={f.id}>{f.flavor_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="select-wrapper">
+                    <Filter size={14} className="filter-icon" />
+                    <select value={batchStatusFilter} onChange={(e) => setBatchStatusFilter(e.target.value)}>
+                      <option value="All">All Statuses</option>
+                      <option value="active">Active & Healthy</option>
+                      <option value="expiring">Expiring Soon (10d)</option>
+                      <option value="expired">Expired</option>
+                      <option value="low_stock">Low Stock</option>
+                      <option value="depleted">Depleted / Out of Stock</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* DESKTOP TABLE VIEW */}
+                <div className="admin-table-container desktop-only">
+                  <table className="admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Batch Code</th>
+                        <th>Flavor Name</th>
+                        <th>Mfg Date</th>
+                        <th>Expiry Date</th>
+                        <th>Total Received</th>
+                        <th>On Hand (Warehouse)</th>
+                        <th>Allocated (Pending)</th>
+                        <th>Available (Remaining)</th>
+                        <th>Reorder Pt</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filtered = batches.filter(batch => {
+                          const matchesSearch = batch.batch_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            batch.flavors?.flavor_name.toLowerCase().includes(searchQuery.toLowerCase());
+                          
+                          const matchesFlavor = flavorFilter === 'All' || batch.flavor_id === flavorFilter;
+                          
+                          const expiry = new Date(batch.expiry_date);
+                          const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+                          
+                          let matchesStatus = true;
+                          if (batchStatusFilter === 'active') {
+                            matchesStatus = batch.status === 'active' && diffDays > 10 && batch.stock_remaining >= batch.reorder_point;
+                          } else if (batchStatusFilter === 'expiring') {
+                            matchesStatus = diffDays >= 0 && diffDays <= 10 && batch.status === 'active';
+                          } else if (batchStatusFilter === 'expired') {
+                            matchesStatus = diffDays < 0;
+                          } else if (batchStatusFilter === 'low_stock') {
+                            matchesStatus = batch.status === 'active' && batch.stock_remaining < batch.reorder_point && batch.stock_remaining > 0;
+                          } else if (batchStatusFilter === 'depleted') {
+                            matchesStatus = batch.stock_on_hand === 0 || batch.status === 'depleted';
+                          }
+
+                          return matchesSearch && matchesFlavor && matchesStatus;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                No warehouse stock batches found.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map(batch => {
+                          const expiry = new Date(batch.expiry_date);
+                          const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+                          
+                          let statusPill = <span className="status-dot-pill active">Active</span>;
+                          if (diffDays < 0) {
+                            statusPill = <span className="status-dot-pill error">Expired</span>;
+                          } else if (diffDays <= 10) {
+                            statusPill = <span className="status-dot-pill warning">Expiring ({diffDays}d)</span>;
+                          } else if (batch.stock_remaining < batch.reorder_point && batch.stock_remaining > 0) {
+                            statusPill = <span className="status-dot-pill warning-orange">Low Stock</span>;
+                          } else if (batch.stock_on_hand === 0 || batch.status === 'depleted') {
+                            statusPill = <span className="status-dot-pill inactive">Depleted</span>;
+                          }
+
+                          return (
+                            <tr key={batch.id} className={batch.status === 'depleted' ? 'disabled-row' : ''}>
+                              <td><code className="batch-code-tag">{batch.batch_number}</code></td>
+                              <td>
+                                <strong style={{ color: 'var(--gold-light)' }}>{batch.flavors?.flavor_name}</strong>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{batch.flavors?.category}</div>
+                              </td>
+                              <td>{formatDate(batch.manufactured_date).split(',')[0]}</td>
+                              <td className={diffDays <= 10 ? 'date-critical' : ''}>
+                                {formatDate(batch.expiry_date).split(',')[0]}
+                              </td>
+                              <td>{batch.quantity_received}</td>
+                              <td><strong>{batch.stock_on_hand}</strong></td>
+                              <td style={{ color: batch.stock_allocated > 0 ? 'var(--accent)' : 'inherit' }}>
+                                {batch.stock_allocated}
+                              </td>
+                              <td>
+                                <strong style={{ color: batch.stock_remaining < batch.reorder_point ? 'var(--accent)' : '#4bc0c0' }}>
+                                  {batch.stock_remaining}
+                                </strong>
+                              </td>
+                              <td>{batch.reorder_point}</td>
+                              <td><span className="unit-badge">{batch.unit}</span></td>
+                              <td>{statusPill}</td>
+                              <td>
+                                <div className="table-actions-cell">
+                                  <button className="action-circle-btn edit" onClick={() => handleOpenBatchModal(batch)} title="Edit Batch Details">
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button className="action-circle-btn adjust" onClick={() => handleOpenAdjustStockModal(batch)} title="Adjust Stock On Hand">
+                                    <TrendingUp size={13} />
+                                  </button>
+                                  <button 
+                                    className={`action-circle-btn toggle ${batch.status === 'active' ? 'active' : 'inactive'}`} 
+                                    onClick={() => handleToggleBatchStatus(batch)}
+                                    title={batch.status === 'active' ? 'Mark Depleted' : 'Mark Active'}
+                                  >
+                                    <Check size={13} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARD VIEW */}
+                <div className="mobile-records-list mobile-only">
+                  {(() => {
+                    const filtered = batches.filter(batch => {
+                      const matchesSearch = batch.batch_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        batch.flavors?.flavor_name.toLowerCase().includes(searchQuery.toLowerCase());
+                      
+                      const matchesFlavor = flavorFilter === 'All' || batch.flavor_id === flavorFilter;
+                      
                       const expiry = new Date(batch.expiry_date);
                       const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+                      
+                      let matchesStatus = true;
+                      if (batchStatusFilter === 'active') {
+                        matchesStatus = batch.status === 'active' && diffDays > 10 && batch.stock_remaining >= batch.reorder_point;
+                      } else if (batchStatusFilter === 'expiring') {
+                        matchesStatus = diffDays >= 0 && diffDays <= 10 && batch.status === 'active';
+                      } else if (batchStatusFilter === 'expired') {
+                        matchesStatus = diffDays < 0;
+                      } else if (batchStatusFilter === 'low_stock') {
+                        matchesStatus = batch.status === 'active' && batch.stock_remaining < batch.reorder_point && batch.stock_remaining > 0;
+                      } else if (batchStatusFilter === 'depleted') {
+                        matchesStatus = batch.stock_on_hand === 0 || batch.status === 'depleted';
+                      }
+
+                      return matchesSearch && matchesFlavor && matchesStatus;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="mobile-empty-state">
+                          No warehouse stock batches found.
+                        </div>
+                      );
+                    }
+
+                    return filtered.map(batch => {
+                      const expiry = new Date(batch.expiry_date);
+                      const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
+                      const isExpanded = !!expandedWarehouseBatchIds[batch.id];
                       
                       let statusPill = <span className="status-dot-pill active">Active</span>;
                       if (diffDays < 0) {
@@ -1289,53 +2012,449 @@ export default function AdminDashboard() {
                       }
 
                       return (
-                        <tr key={batch.id} className={batch.status === 'depleted' ? 'disabled-row' : ''}>
-                          <td><code className="batch-code-tag">{batch.batch_number}</code></td>
-                          <td>
-                            <strong style={{ color: 'var(--gold-light)' }}>{batch.flavors?.flavor_name}</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{batch.flavors?.category}</div>
-                          </td>
-                          <td>{formatDate(batch.manufactured_date).split(',')[0]}</td>
-                          <td className={diffDays <= 10 ? 'date-critical' : ''}>
-                            {formatDate(batch.expiry_date).split(',')[0]}
-                          </td>
-                          <td>{batch.quantity_received}</td>
-                          <td><strong>{batch.stock_on_hand}</strong></td>
-                          <td style={{ color: batch.stock_allocated > 0 ? 'var(--accent)' : 'inherit' }}>
-                            {batch.stock_allocated}
-                          </td>
-                          <td>
-                            <strong style={{ color: batch.stock_remaining < batch.reorder_point ? 'var(--accent)' : '#4bc0c0' }}>
-                              {batch.stock_remaining}
-                            </strong>
-                          </td>
-                          <td>{batch.reorder_point}</td>
-                          <td><span className="unit-badge">{batch.unit}</span></td>
-                          <td>{statusPill}</td>
-                          <td>
-                            <div className="table-actions-cell">
-                              <button className="action-circle-btn edit" onClick={() => handleOpenBatchModal(batch)} title="Edit Batch Details">
-                                <Edit2 size={13} />
-                              </button>
-                              <button className="action-circle-btn adjust" onClick={() => handleOpenAdjustStockModal(batch)} title="Adjust Stock On Hand">
-                                <TrendingUp size={13} />
-                              </button>
+                        <div key={batch.id} className={`mobile-record-card ${batch.status === 'depleted' ? 'depleted' : ''}`}>
+                          <div className="mobile-card-header" onClick={() => toggleWarehouseBatchExpand(batch.id)}>
+                            <div className="mobile-card-title-wrap">
+                              <code className="batch-code-tag">{batch.batch_number}</code>
+                              <h3 className="mobile-card-title">{batch.flavors?.flavor_name}</h3>
+                            </div>
+                            <div className="mobile-card-header-right">
+                              <strong style={{ color: batch.stock_remaining < batch.reorder_point ? 'var(--accent)' : '#4bc0c0' }}>
+                                {batch.stock_remaining} Tubs
+                              </strong>
+                              <ChevronDown className={`expand-chevron ${isExpanded ? 'rotated' : ''}`} size={16} />
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mobile-card-details-expanded">
+                              <div className="detail-row">
+                                <span className="label">Mfg Date:</span>
+                                <span className="val">{formatDate(batch.manufactured_date).split(',')[0]}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Expiry Date:</span>
+                                <span className={`val ${diffDays <= 10 ? 'date-critical' : ''}`}>
+                                  {formatDate(batch.expiry_date).split(',')[0]}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Total Received:</span>
+                                <span className="val">{batch.quantity_received} Tubs</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">On Hand:</span>
+                                <span className="val">{batch.stock_on_hand} Tubs</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Allocated:</span>
+                                <span className="val" style={{ color: batch.stock_allocated > 0 ? 'var(--accent)' : 'inherit' }}>
+                                  {batch.stock_allocated} Tubs
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Reorder Point:</span>
+                                <span className="val">{batch.reorder_point} Tubs</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Unit:</span>
+                                <span className="val"><span className="unit-badge">{batch.unit}</span></span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Status:</span>
+                                <span className="val">{statusPill}</span>
+                              </div>
+
+                              <div className="mobile-card-actions-wrapper">
+                                <button className="btn btn-secondary btn-sm" onClick={() => handleOpenBatchModal(batch)}>
+                                  Edit Details
+                                </button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => handleOpenAdjustStockModal(batch)}>
+                                  Adjust Stock
+                                </button>
+                                <button 
+                                  className="btn btn-secondary btn-sm" 
+                                  style={{ color: batch.status === 'active' ? 'var(--accent)' : '#4bc0c0', borderColor: batch.status === 'active' ? 'rgba(239,68,68,0.4)' : 'rgba(75,192,192,0.4)' }}
+                                  onClick={() => handleToggleBatchStatus(batch)}
+                                >
+                                  {batch.status === 'active' ? 'Mark Depleted' : 'Mark Active'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 3: PRODUCTION PLANNING & FORECAST (NEW VIEW) */}
+            {selectedInventoryCenterSubTab === 'forecast' && (
+              <div className="production-forecast-view fade-in-up">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                  
+                  {/* Depletion Risk Box */}
+                  <div className="forecast-metric-card" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <AlertTriangle size={24} style={{ color: '#f59e0b' }} />
+                      <h3 style={{ margin: 0 }}>Critical Depletion Risks</h3>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>
+                      Flavors currently out of stock or projected to run out based on sales demand velocity.
+                    </p>
+                    {(() => {
+                      const risks = getFlavorInventoryStats().filter(f => f.available <= 20);
+                      if (risks.length === 0) {
+                        return <div style={{ color: '#4bc0c0', fontWeight: '600' }}>✓ All flavors healthy & fully stocked</div>;
+                      }
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {risks.map(r => (
+                            <div key={r.flavor.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.08)', padding: '8px 12px', borderRadius: '4px', borderLeft: '4px solid #ef4444' }}>
+                              <div>
+                                <strong style={{ color: 'var(--gold-light)' }}>{r.flavor.flavor_name}</strong>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Warehouse: {r.available} Tubs</div>
+                              </div>
+                              <span className={`status-dot-pill ${r.available === 0 ? 'error' : 'warning'}`}>
+                                {r.available === 0 ? 'DEPLETED' : 'LOW STOCK'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Churn Rate & Velocity Box */}
+                  <div className="forecast-metric-card" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <TrendingUp size={24} style={{ color: '#4bc0c0' }} />
+                      <h3 style={{ margin: 0 }}>Demand & Churn Velocity</h3>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>
+                      Estimated weekly consumption rates synthesized from wholesale approvals and parlour sales logs.
+                    </p>
+                    {(() => {
+                      const completedTubsCount = orders.filter(o => ['delivered', 'completed'].includes(o.status)).reduce((sum, o) => sum + (o.order_items?.reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                      const activeTubsCount = orders.filter(o => ['accepted', 'preparing', 'dispatched'].includes(o.status)).reduce((sum, o) => sum + (o.order_items?.reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                            <span>Cumulative Sales (Delivered):</span>
+                            <strong>{completedTubsCount} Tubs</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                            <span>Active Churn in Progress:</span>
+                            <strong style={{ color: 'var(--gold-light)' }}>{activeTubsCount} Tubs</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Overall Inventory Health:</span>
+                            <strong style={{ color: stats.inventoryHealthPct > 80 ? '#4bc0c0' : 'var(--gold)' }}>{stats.inventoryHealthPct}%</strong>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                </div>
+
+                {/* DESKTOP TABLE VIEW */}
+                <div className="admin-table-container desktop-only">
+                  <h3 style={{ marginBottom: '16px', color: 'var(--gold)' }}>Production Recommendations</h3>
+                  <table className="admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Flavor Name</th>
+                        <th>Current Available</th>
+                        <th>Pending Wholesale Demand</th>
+                        <th>Parlour Low-Stock Shortfalls</th>
+                        <th>Proactive Churn Recommendation</th>
+                        <th style={{ textAlign: 'center' }}>Production Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flavors.map(flavor => {
+                        const flavorBatches = batches.filter(b => b.flavor_id === flavor.id);
+                        const available = flavorBatches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_remaining : 0), 0);
+                        
+                        // Calculate pending demand
+                        let pendingDemand = 0;
+                        orders.forEach(o => {
+                          if (['submitted', 'pending', 'accepted', 'preparing'].includes(o.status)) {
+                            const item = o.order_items?.find(i => i.flavor_id === flavor.id);
+                            if (item) pendingDemand += item.quantity;
+                          }
+                        });
+
+                        // Calculate parlour shortfall (parlours below threshold of 5 tubs)
+                        let parlourShortfall = 0;
+                        locationStock.forEach(loc => {
+                          if (loc.flavor_id === flavor.id && loc.stock_qty <= 5) {
+                            parlourShortfall += (10 - loc.stock_qty); // target 10 tubs max stock replenishment recommendation
+                          }
+                        });
+
+                        const totalDemand = pendingDemand + parlourShortfall;
+                        const recommendedProduction = Math.max(20, totalDemand + (available <= 20 ? 30 : 0));
+                        const needsProduction = available <= 20 || totalDemand > available;
+
+                        return (
+                          <tr key={flavor.id}>
+                            <td><strong>{flavor.flavor_name}</strong></td>
+                            <td>
+                              <span style={{ color: available === 0 ? '#ef4444' : available <= 20 ? '#f59e0b' : '#4bc0c0', fontWeight: 'bold' }}>
+                                {available} Tubs
+                              </span>
+                            </td>
+                            <td>{pendingDemand} Tubs</td>
+                            <td>{parlourShortfall} Tubs</td>
+                            <td>
+                              <strong style={{ color: needsProduction ? 'var(--gold)' : 'var(--text-muted)' }}>
+                                {needsProduction ? `${recommendedProduction} Tubs (Suggested)` : 'Warehouse Sufficient'}
+                              </strong>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
                               <button 
-                                className={`action-circle-btn toggle ${batch.status === 'active' ? 'active' : 'inactive'}`} 
-                                onClick={() => handleToggleBatchStatus(batch)}
-                                title={batch.status === 'active' ? 'Mark Depleted' : 'Mark Active'}
+                                className={`btn ${needsProduction ? 'btn-primary' : 'btn-secondary'} btn-xs`}
+                                onClick={() => handleOpenBatchModal({ flavor_id: flavor.id, quantity_received: recommendedProduction })}
                               >
-                                <Check size={13} />
+                                Produce Batch
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARD VIEW */}
+                <div className="mobile-records-list mobile-only" style={{ marginTop: '16px' }}>
+                  <h3 style={{ marginBottom: '16px', color: 'var(--gold)' }}>Production Recommendations</h3>
+                  {flavors.map(flavor => {
+                    const flavorBatches = batches.filter(b => b.flavor_id === flavor.id);
+                    const available = flavorBatches.reduce((sum, b) => sum + (b.status === 'active' ? b.stock_remaining : 0), 0);
+                    
+                    // Calculate pending demand
+                    let pendingDemand = 0;
+                    orders.forEach(o => {
+                      if (['submitted', 'pending', 'accepted', 'preparing'].includes(o.status)) {
+                        const item = o.order_items?.find(i => i.flavor_id === flavor.id);
+                        if (item) pendingDemand += item.quantity;
+                      }
+                    });
+
+                    // Calculate parlour shortfall
+                    let parlourShortfall = 0;
+                    locationStock.forEach(loc => {
+                      if (loc.flavor_id === flavor.id && loc.stock_qty <= 5) {
+                        parlourShortfall += (10 - loc.stock_qty);
+                      }
+                    });
+
+                    const totalDemand = pendingDemand + parlourShortfall;
+                    const recommendedProduction = Math.max(20, totalDemand + (available <= 20 ? 30 : 0));
+                    const needsProduction = available <= 20 || totalDemand > available;
+                    const isExpanded = !!expandedProductionRecommendIds[flavor.id];
+
+                    return (
+                      <div key={flavor.id} className="mobile-record-card">
+                        <div className="mobile-card-header" onClick={() => toggleProductionRecommendExpand(flavor.id)}>
+                          <div className="mobile-card-title-wrap">
+                            <h3 className="mobile-card-title">{flavor.flavor_name}</h3>
+                          </div>
+                          <div className="mobile-card-header-right">
+                            <span style={{ color: available === 0 ? '#ef4444' : available <= 20 ? '#f59e0b' : '#4bc0c0', fontWeight: 'bold' }}>
+                              {available} Tubs
+                            </span>
+                            <ChevronDown className={`expand-chevron ${isExpanded ? 'rotated' : ''}`} size={16} />
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mobile-card-details-expanded">
+                            <div className="detail-row">
+                              <span className="label">Pending Demand:</span>
+                              <span className="val">{pendingDemand} Tubs</span>
+                            </div>
+                            <div className="detail-row">
+                              <span className="label">Parlour Shortfall:</span>
+                              <span className="val">{parlourShortfall} Tubs</span>
+                            </div>
+                            <div className="detail-row">
+                              <span className="label">Recommendation:</span>
+                              <span className="val" style={{ color: needsProduction ? 'var(--gold)' : 'var(--text-muted)', fontWeight: 'bold' }}>
+                                {needsProduction ? `${recommendedProduction} Tubs (Suggested)` : 'Warehouse Sufficient'}
+                              </span>
+                            </div>
+
+                            <div className="mobile-card-actions-wrapper">
+                              <button 
+                                className={`btn ${needsProduction ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                                onClick={() => handleOpenBatchModal({ flavor_id: flavor.id, quantity_received: recommendedProduction })}
+                              >
+                                Produce Batch
                               </button>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+            {/* SUBTAB 4: WAREHOUSE AUDIT TRAIL (STOCK MOVEMENTS) */}
+            {selectedInventoryCenterSubTab === 'movements' && (
+              <div className="warehouse-audit-trail-view fade-in-up">
+                <div className="tab-actions-row" style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '16px' }}>
+                  <div className="search-box inline-search">
+                    <Search size={16} className="search-icon" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search movements..."
+                    />
+                  </div>
+                </div>
+
+                {/* DESKTOP TABLE VIEW */}
+                <div className="admin-table-container desktop-only">
+                  <table className="admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Date & Time</th>
+                        <th>Flavor Name</th>
+                        <th>Batch Code</th>
+                        <th>Store Location</th>
+                        <th>Transaction Qty</th>
+                        <th>Adjustment Type</th>
+                        <th>Reference Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filteredMovements = movements.filter(mov => {
+                          const matchesSearch = mov.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            mov.flavors?.flavor_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            mov.batches?.batch_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            mov.shops?.shop_name?.toLowerCase().includes(searchQuery.toLowerCase());
+                          return matchesSearch;
+                        });
+
+                        if (filteredMovements.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                No stock movements logged in the audit trail.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filteredMovements.map(mov => (
+                          <tr key={mov.id}>
+                            <td>{formatDate(mov.created_at)}</td>
+                            <td><strong style={{ color: 'var(--gold-light)' }}>{mov.flavors?.flavor_name}</strong></td>
+                            <td><code className="batch-code-tag">{mov.batches?.batch_number}</code></td>
+                            <td>{mov.shops?.shop_name || 'Central Warehouse'}</td>
+                            <td>
+                              <strong style={{ color: mov.quantity > 0 ? '#4bc0c0' : 'var(--accent)' }}>
+                                {mov.quantity > 0 ? `+${mov.quantity}` : mov.quantity} Tubs
+                              </strong>
+                            </td>
+                            <td>
+                              <span className={`status-dot-pill ${mov.type === 'delivered' ? 'active' : mov.type === 'dispatched' ? 'warning-orange' : 'inactive'}`}>
+                                {mov.type.toUpperCase()}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{mov.notes}</td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARD VIEW */}
+                <div className="mobile-records-list mobile-only">
+                  {(() => {
+                    const filteredMovements = movements.filter(mov => {
+                      const matchesSearch = mov.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        mov.flavors?.flavor_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        mov.batches?.batch_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        mov.shops?.shop_name?.toLowerCase().includes(searchQuery.toLowerCase());
+                      return matchesSearch;
+                    });
+
+                    if (filteredMovements.length === 0) {
+                      return (
+                        <div className="mobile-empty-state">
+                          No stock movements logged in the audit trail.
+                        </div>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    }
+
+                    return filteredMovements.map(mov => {
+                      const isExpanded = !!expandedStockMovementIds[mov.id];
+                      return (
+                        <div key={mov.id} className="mobile-record-card">
+                          <div className="mobile-card-header" onClick={() => toggleStockMovementExpand(mov.id)}>
+                            <div className="mobile-card-title-wrap">
+                              <h3 className="mobile-card-title">{mov.flavors?.flavor_name}</h3>
+                              <span className="time" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {formatDate(mov.created_at).split(',')[0]}
+                              </span>
+                            </div>
+                            <div className="mobile-card-header-right">
+                              <strong style={{ color: mov.quantity > 0 ? '#4bc0c0' : 'var(--accent)' }}>
+                                {mov.quantity > 0 ? `+${mov.quantity}` : mov.quantity} Tubs
+                              </strong>
+                              <ChevronDown className={`expand-chevron ${isExpanded ? 'rotated' : ''}`} size={16} />
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mobile-card-details-expanded">
+                              <div className="detail-row">
+                                <span className="label">Date & Time:</span>
+                                <span className="val">{formatDate(mov.created_at)}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Batch Code:</span>
+                                <span className="val"><code className="batch-code-tag">{mov.batches?.batch_number}</code></span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Location:</span>
+                                <span className="val">{mov.shops?.shop_name || 'Central Warehouse'}</span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="label">Adjustment Type:</span>
+                                <span className="val">
+                                  <span className={`status-dot-pill ${mov.type === 'delivered' ? 'active' : mov.type === 'dispatched' ? 'warning-orange' : 'inactive'}`}>
+                                    {mov.type.toUpperCase()}
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="detail-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                                <span className="label">Reference Notes:</span>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{mov.notes || 'No description provided.'}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
@@ -1372,6 +2491,13 @@ export default function AdminDashboard() {
                     ))}
                   </select>
                 </div>
+                <div className="select-wrapper">
+                  <Filter size={14} className="filter-icon" />
+                  <select value={locationStockFilter} onChange={(e) => setLocationStockFilter(e.target.value)}>
+                    <option value="All">All Stock Levels</option>
+                    <option value="low_stock">{'Needs Reorder (<= 5 Tubs)'}</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => handleOpenReturnStockModal()}>
@@ -1383,7 +2509,8 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="admin-table-container">
+            {/* DESKTOP TABLE VIEW */}
+            <div className="admin-table-container desktop-only">
               <table className="admin-data-table">
                 <thead>
                   <tr>
@@ -1441,97 +2568,447 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {/* MOBILE CARD VIEW */}
+            <div className="mobile-records-list mobile-only">
+              {filteredLocationStock.length === 0 ? (
+                <div className="mobile-empty-state">
+                  No store stock records found. Stock is added here when orders are marked "DELIVERED".
+                </div>
+              ) : (
+                filteredLocationStock.map(loc => {
+                  const expiry = loc.batches ? new Date(loc.batches.expiry_date) : null;
+                  const diffDays = expiry ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                  const isExpanded = !!expandedParlourStockIds[loc.id];
+
+                  return (
+                    <div key={loc.id} className="mobile-record-card">
+                      <div className="mobile-card-header" onClick={() => toggleParlourStockExpand(loc.id)}>
+                        <div className="mobile-card-title-wrap">
+                          <span className="shop-code-badge">{loc.shops?.shop_code}</span>
+                          <h3 className="mobile-card-title">{loc.shops?.shop_name}</h3>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--gold-light)' }}>{loc.flavors?.flavor_name}</div>
+                        </div>
+                        <div className="mobile-card-header-right">
+                          <strong style={{ color: 'var(--gold)' }}>{loc.stock_qty} Tubs</strong>
+                          <ChevronDown className={`expand-chevron ${isExpanded ? 'rotated' : ''}`} size={16} />
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mobile-card-details-expanded">
+                          <div className="detail-row">
+                            <span className="label">Flavor Name:</span>
+                            <span className="val">{loc.flavors?.flavor_name} ({loc.flavors?.category})</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Batch #:</span>
+                            <span className="val"><code className="batch-code-tag">{loc.batches?.batch_number || 'Unknown'}</code></span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Expiry Date:</span>
+                            <span className={`val ${diffDays && diffDays <= 10 ? 'date-critical' : ''}`}>
+                              {loc.batches ? formatDate(loc.batches.expiry_date).split(',')[0] : 'N/A'}
+                            </span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Last Updated:</span>
+                            <span className="val">{formatDate(loc.last_updated)}</span>
+                          </div>
+
+                          <div className="mobile-card-actions-wrapper">
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenAdjustStoreStockModal(loc)}>
+                              Deduct / Adjust
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenReturnStockModal(loc)}>
+                              Return Stock
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 
-        {/* TABS 4: STOCK MOVEMENTS AUDIT */}
-        {activeTab === 'movements' && (
-          <div className="movements-mgmt-tab fade-in-up">
-            <div className="tab-actions-row">
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <h2>Inventory Movements Audit Trail</h2>
-                <div className="search-box inline-search">
-                  <Search size={16} className="search-icon" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search notes, flavor, batch..."
-                  />
-                </div>
-                <div className="select-wrapper">
-                  <Filter size={14} className="filter-icon" />
-                  <select value={shopFilter} onChange={(e) => setShopFilter(e.target.value)}>
-                    <option value="All">All Locations</option>
-                    <option value="warehouse">Warehouse Only</option>
-                    {shops.map(s => (
-                      <option key={s.id} value={s.id}>{s.shop_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="select-wrapper">
-                  <Filter size={14} className="filter-icon" />
-                  <select value={flavorFilter} onChange={(e) => setFlavorFilter(e.target.value)}>
-                    <option value="All">All Flavors</option>
-                    {flavors.map(f => (
-                      <option key={f.id} value={f.id}>{f.flavor_name}</option>
-                    ))}
-                  </select>
+        {/* TABS 4: ANALYTICS HUB */}
+        {activeTab === 'analytics' && (
+          <div className="analytics-hub-tab fade-in-up">
+            <div className="tab-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>Business Intelligence & Analytics Hub</h2>
+            </div>
+
+            {/* Sub navigation */}
+            <div className="sub-tabs-nav" style={{ display: 'flex', gap: '12px', borderBottom: '1px solid rgba(212, 175, 55, 0.15)', marginBottom: '20px', paddingBottom: '10px' }}>
+              <button 
+                className={`sub-tab-btn ${selectedAnalyticsSubTab === 'performance' ? 'active' : ''}`}
+                onClick={() => setSelectedAnalyticsSubTab('performance')}
+                style={{
+                  background: selectedAnalyticsSubTab === 'performance' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedAnalyticsSubTab === 'performance' ? 'var(--gold)' : 'transparent',
+                  color: selectedAnalyticsSubTab === 'performance' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Partner Performance
+              </button>
+              <button 
+                className={`sub-tab-btn ${selectedAnalyticsSubTab === 'flavors' ? 'active' : ''}`}
+                onClick={() => setSelectedAnalyticsSubTab('flavors')}
+                style={{
+                  background: selectedAnalyticsSubTab === 'flavors' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedAnalyticsSubTab === 'flavors' ? 'var(--gold)' : 'transparent',
+                  color: selectedAnalyticsSubTab === 'flavors' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Flavor Velocity & Sales
+              </button>
+              <button 
+                className={`sub-tab-btn ${selectedAnalyticsSubTab === 'health' ? 'active' : ''}`}
+                onClick={() => setSelectedAnalyticsSubTab('health')}
+                style={{
+                  background: selectedAnalyticsSubTab === 'health' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: selectedAnalyticsSubTab === 'health' ? 'var(--gold)' : 'transparent',
+                  color: selectedAnalyticsSubTab === 'health' ? 'var(--gold)' : 'var(--text-muted)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Inventory Health Overview
+              </button>
+            </div>
+
+            {/* SUBTAB 1: PARTNER PERFORMANCE */}
+            {selectedAnalyticsSubTab === 'performance' && (
+              <div className="partner-analytics-view fade-in-up">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                  
+                  {/* Top Ordering Parlours */}
+                  <div className="analytics-card" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <h3 style={{ color: 'var(--gold)', marginBottom: '16px' }}>Top Ordering Parlours</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {(() => {
+                        const shopStats = shops.map(shop => {
+                          const shopOrders = orders.filter(o => o.shop_id === shop.id && ['delivered', 'completed'].includes(o.status));
+                          const totalTubs = shopOrders.reduce((sum, o) => sum + (o.order_items?.reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                          const avgOrderSize = shopOrders.length > 0 ? Math.round(totalTubs / shopOrders.length) : 0;
+                          return { shop, totalTubs, avgOrderSize, orderCount: shopOrders.length };
+                        }).sort((a, b) => b.totalTubs - a.totalTubs);
+
+                        return shopStats.slice(0, 3).map((stat, idx) => (
+                          <div key={stat.shop.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px' }}>
+                            <div>
+                              <strong style={{ color: '#fff' }}>#{idx+1} {stat.shop.shop_name}</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{stat.shop.location}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <strong style={{ color: '#4bc0c0' }}>{stat.totalTubs} Tubs</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{stat.orderCount} restocks</div>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Least Active Parlours */}
+                  <div className="analytics-card" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <h3 style={{ color: 'var(--accent)', marginBottom: '16px' }}>Least Active Parlours</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {(() => {
+                        const shopStats = shops.map(shop => {
+                          const shopOrders = orders.filter(o => o.shop_id === shop.id && ['delivered', 'completed'].includes(o.status));
+                          const totalTubs = shopOrders.reduce((sum, o) => sum + (o.order_items?.reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                          return { shop, totalTubs, orderCount: shopOrders.length };
+                        }).sort((a, b) => a.totalTubs - b.totalTubs);
+
+                        return shopStats.slice(0, 3).map((stat, idx) => (
+                          <div key={stat.shop.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px' }}>
+                            <div>
+                              <strong style={{ color: '#fff' }}>{stat.shop.shop_name}</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Code: {stat.shop.shop_code}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <strong style={{ color: 'var(--accent)' }}>{stat.totalTubs} Tubs</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{stat.orderCount} orders</div>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Restock Frequency & Volume */}
+                  <div className="analytics-card" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <h3 style={{ color: 'var(--gold-light)', marginBottom: '16px' }}>Volume Statistics</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {(() => {
+                        const totalCompletedOrders = orders.filter(o => ['delivered', 'completed'].includes(o.status));
+                        const totalCompletedTubs = totalCompletedOrders.reduce((sum, o) => sum + (o.order_items?.reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                        const overallAvgOrder = totalCompletedOrders.length > 0 ? Math.round(totalCompletedTubs / totalCompletedOrders.length) : 0;
+                        return (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Total Tubs Ordered:</span>
+                              <strong>{totalCompletedTubs} Tubs</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Average Order Size:</span>
+                              <strong>{overallAvgOrder} Tubs</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Active Parlours:</span>
+                              <strong>{shops.filter(s => s.active).length} Shops</strong>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="admin-table-container">
-              <table className="admin-data-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Flavor Name</th>
-                    <th>Batch #</th>
-                    <th>Movement Type</th>
-                    <th>Quantity Change</th>
-                    <th>Location / Parlour</th>
-                    <th>System Audit Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMovements.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                        No stock movement records found matching the filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredMovements.map(move => {
-                      const isPositive = move.quantity > 0;
-                      let typePill = <span className="movement-type-tag info">{move.type}</span>;
-                      if (move.type === 'received') typePill = <span className="movement-type-tag success">Received</span>;
-                      if (move.type === 'allocated') typePill = <span className="movement-type-tag warning">Allocated</span>;
-                      if (move.type === 'dispatched') typePill = <span className="movement-type-tag warning-orange">Dispatched</span>;
-                      if (move.type === 'delivered') typePill = <span className="movement-type-tag success-green">Delivered</span>;
-                      if (move.type === 'damaged') typePill = <span className="movement-type-tag danger">Damage/Loss</span>;
-                      if (move.type === 'returned') typePill = <span className="movement-type-tag info-blue">Returned</span>;
+            {/* SUBTAB 2: FLAVOR VELOCITY & SALES */}
+            {selectedAnalyticsSubTab === 'flavors' && (
+              <div className="flavor-analytics-view fade-in-up">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                  
+                  {/* Best Selling Flavor */}
+                  <div className="metric-box" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Best Selling Flavor</div>
+                    {(() => {
+                      const sales = flavors.map(flavor => {
+                        const total = orders.filter(o => ['delivered', 'completed'].includes(o.status))
+                          .reduce((sum, o) => sum + (o.order_items?.filter(i => i.flavor_id === flavor.id).reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                        return { flavor, total };
+                      }).sort((a, b) => b.total - a.total);
+
+                      if (sales.length === 0 || sales[0].total === 0) return <strong>None yet</strong>;
+                      return (
+                        <>
+                          <div style={{ fontSize: '1.4rem', color: 'var(--gold)', fontWeight: 'bold' }}>{sales[0].flavor.flavor_name}</div>
+                          <span style={{ color: '#4bc0c0' }}>{sales[0].total} Tubs Ordered</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Dormant / Low Demand */}
+                  <div className="metric-box" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Dormant / Low Demand</div>
+                    {(() => {
+                      const sales = flavors.map(flavor => {
+                        const total = orders.filter(o => ['delivered', 'completed'].includes(o.status))
+                          .reduce((sum, o) => sum + (o.order_items?.filter(i => i.flavor_id === flavor.id).reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                        return { flavor, total };
+                      }).sort((a, b) => a.total - b.total);
+
+                      if (sales.length === 0) return <strong>None</strong>;
+                      return (
+                        <>
+                          <div style={{ fontSize: '1.4rem', color: 'var(--accent)', fontWeight: 'bold' }}>{sales[0].flavor.flavor_name}</div>
+                          <span style={{ color: 'var(--text-muted)' }}>{sales[0].total} Tubs Ordered</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Overstocked Flavor */}
+                  <div className="metric-box" style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '20px' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Overstocked (Warehouse)</div>
+                    {(() => {
+                      const stockStats = getFlavorInventoryStats().sort((a, b) => b.available - a.available);
+                      if (stockStats.length === 0 || stockStats[0].available === 0) return <strong>None</strong>;
+                      return (
+                        <>
+                          <div style={{ fontSize: '1.4rem', color: 'var(--gold-light)', fontWeight: 'bold' }}>{stockStats[0].flavor.flavor_name}</div>
+                          <span style={{ color: '#4bc0c0' }}>{stockStats[0].available} Tubs available</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                </div>
+
+                {/* DESKTOP TABLE VIEW */}
+                <div className="admin-table-container desktop-only">
+                  <table className="admin-data-table">
+                    <thead>
+                      <tr>
+                        <th>Flavor</th>
+                        <th>Category</th>
+                        <th>Total Volume Ordered</th>
+                        <th>Warehouse On Hand</th>
+                        <th>Reserved Stock</th>
+                        <th>Sales Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flavors.map(flavor => {
+                        const totalOrdered = orders.filter(o => ['delivered', 'completed'].includes(o.status))
+                          .reduce((sum, o) => sum + (o.order_items?.filter(i => i.flavor_id === flavor.id).reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                        
+                        const stats = getFlavorInventoryStats().find(s => s.flavor.id === flavor.id) || { available: 0, reserved: 0 };
+                        let label = 'Steady';
+                        if (totalOrdered >= 50) label = 'Best Seller';
+                        else if (totalOrdered === 0) label = 'Dormant';
+                        else if (stats.available > 100) label = 'Overstocked';
+
+                        return (
+                          <tr key={flavor.id}>
+                            <td><strong>{flavor.flavor_name}</strong></td>
+                            <td>{flavor.category}</td>
+                            <td><strong>{totalOrdered} Tubs</strong></td>
+                            <td>{stats.available} Tubs</td>
+                            <td>{stats.reserved} Tubs</td>
+                            <td>
+                              <span className={`status-dot-pill ${label === 'Best Seller' ? 'active' : label === 'Dormant' ? 'inactive' : 'warning'}`}>
+                                {label}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARD VIEW */}
+                <div className="mobile-records-list mobile-only" style={{ marginTop: '16px' }}>
+                  {flavors.map(flavor => {
+                    const totalOrdered = orders.filter(o => ['delivered', 'completed'].includes(o.status))
+                      .reduce((sum, o) => sum + (o.order_items?.filter(i => i.flavor_id === flavor.id).reduce((a, b) => a + b.quantity, 0) || 0), 0);
+                    
+                    const stats = getFlavorInventoryStats().find(s => s.flavor.id === flavor.id) || { available: 0, reserved: 0 };
+                    let label = 'Steady';
+                    if (totalOrdered >= 50) label = 'Best Seller';
+                    else if (totalOrdered === 0) label = 'Dormant';
+                    else if (stats.available > 100) label = 'Overstocked';
+
+                    return (
+                      <div key={flavor.id} className="mobile-record-card">
+                        <div className="mobile-card-header" style={{ cursor: 'default' }}>
+                          <div className="mobile-card-title-wrap">
+                            <span className="category-badge">{flavor.category}</span>
+                            <h3 className="mobile-card-title">{flavor.flavor_name}</h3>
+                          </div>
+                          <span className={`status-dot-pill ${label === 'Best Seller' ? 'active' : label === 'Dormant' ? 'inactive' : 'warning'}`}>
+                            {label}
+                          </span>
+                        </div>
+                        <div className="mobile-card-details-expanded" style={{ display: 'block', padding: '12px' }}>
+                          <div className="detail-row">
+                            <span className="label">Total Volume Ordered:</span>
+                            <span className="val"><strong>{totalOrdered} Tubs</strong></span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Warehouse On Hand:</span>
+                            <span className="val">{stats.available} Tubs</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Reserved Stock:</span>
+                            <span className="val">{stats.reserved} Tubs</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+            {/* SUBTAB 3: INVENTORY HEALTH OVERVIEW */}
+            {selectedAnalyticsSubTab === 'health' && (
+              <div className="inventory-health-view fade-in-up" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+                
+                {/* Health Radial Gauge */}
+                <div style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <h3 style={{ color: 'var(--gold)', marginBottom: '20px' }}>Warehouse Health Index</h3>
+                  <div style={{ width: '150px', height: '150px', borderRadius: '50%', border: '8px solid rgba(212, 175, 55, 0.15)', borderTopColor: 'var(--gold)', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px' }}>
+                    <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#fff' }}>{stats.inventoryHealthPct}%</span>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    Calculated as the percentage of flavors in the warehouse maintaining a stock count above the safety threshold (20 tubs).
+                  </p>
+                </div>
+
+                {/* Health Index Breakdown */}
+                <div style={{ background: 'rgba(28, 8, 38, 0.4)', border: '1px solid rgba(212, 175, 55, 0.15)', borderRadius: '8px', padding: '24px' }}>
+                  <h3 style={{ color: 'var(--gold-light)', marginBottom: '16px' }}>Stock Health Breakdown</h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {(() => {
+                      const totalFlavors = flavors.length || 1;
+                      const statsList = getFlavorInventoryStats();
+                      const healthyCount = statsList.filter(f => f.available > 20).length;
+                      const lowStockCount = statsList.filter(f => f.available > 0 && f.available <= 20).length;
+                      const outCount = statsList.filter(f => f.available === 0).length;
+
+                      const healthyPct = Math.round((healthyCount / totalFlavors) * 100);
+                      const lowPct = Math.round((lowStockCount / totalFlavors) * 100);
+                      const outPct = Math.round((outCount / totalFlavors) * 100);
 
                       return (
-                        <tr key={move.id}>
-                          <td>{formatDate(move.created_at)}</td>
-                          <td>
-                            <strong style={{ color: 'var(--gold-light)' }}>{move.flavors?.flavor_name}</strong>
-                          </td>
-                          <td><code className="batch-code-tag">{move.batches?.batch_number || 'Unknown'}</code></td>
-                          <td>{typePill}</td>
-                          <td style={{ color: isPositive ? '#4bc0c0' : 'var(--accent)', fontWeight: 'bold' }}>
-                            {isPositive ? '+' : ''}{move.quantity} Tubs
-                          </td>
-                          <td>{move.shops?.shop_name || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Master Warehouse</span>}</td>
-                          <td>{move.notes}</td>
-                        </tr>
+                        <>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span>Healthy Flavors (&gt; 20 tubs):</span>
+                              <strong>{healthyCount} / {totalFlavors} ({healthyPct}%)</strong>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.05)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{ background: '#4bc0c0', width: `${healthyPct}%`, height: '100%' }}></div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span>Low Stock Flavors (&lt;= 20 tubs):</span>
+                              <strong>{lowStockCount} / {totalFlavors} ({lowPct}%)</strong>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.05)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{ background: '#f59e0b', width: `${lowPct}%`, height: '100%' }}></div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span>Out of Stock (0 tubs):</span>
+                              <strong>{outCount} / {totalFlavors} ({outPct}%)</strong>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.05)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{ background: '#ef4444', width: `${outPct}%`, height: '100%' }}></div>
+                            </div>
+                          </div>
+                        </>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+            )}
+
           </div>
         )}
 
@@ -2125,7 +3602,7 @@ export default function AdminDashboard() {
         <div className="modal-overlay">
           <div className="modal-card fade-in-up compact-modal">
             <div className="modal-header">
-              <h3>Adjust Warehouse Stock</h3>
+              <h3>Adjust Stock: {adjustStockForm.flavor_name} ({adjustStockForm.batch_number})</h3>
               <button className="close-btn" onClick={() => setIsAdjustStockModalOpen(false)}>×</button>
             </div>
             <form onSubmit={handleAdjustStockSubmit}>

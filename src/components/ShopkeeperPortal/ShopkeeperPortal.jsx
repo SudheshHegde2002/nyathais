@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, History, User, MapPin, Phone, Mail,
-  Plus, Minus, Check, Search, FileText, ChevronRight, Clock,
+  Plus, Minus, Check, Search, FileText, ChevronRight, ChevronDown, ChevronUp, Clock,
   Truck, CheckCircle, Package, AlertCircle, ShoppingCart, ArrowLeft
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
@@ -37,6 +37,8 @@ export default function ShopkeeperPortal() {
 
   // Expanded Order in History
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(null);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   // Profile Customization State
   const [profileForm, setProfileForm] = useState({
@@ -60,6 +62,7 @@ export default function ShopkeeperPortal() {
   const [selectedStockForReturn, setSelectedStockForReturn] = useState(null);
   const [parlourReturnQty, setParlourReturnQty] = useState(5);
   const [parlourReturnNotes, setParlourReturnNotes] = useState('');
+  const [soldOutCollapsed, setSoldOutCollapsed] = useState(true);
 
   // Load initial session
   useEffect(() => {
@@ -153,16 +156,38 @@ export default function ShopkeeperPortal() {
     }
   };
 
-  // Set up realtime updates for shopkeeper orders & stock levels
+  // Set up realtime updates, polling, and storage listeners for shopkeeper orders & stock levels
   useEffect(() => {
-    if (!userSession?.profile?.shop_id) return;
+    const shopId = userSession?.profile?.shop_id;
+    if (!shopId) return;
 
     const unsubscribe = supabaseService.subscribeToOrders((payload) => {
-      const shopId = userSession.profile.shop_id;
       loadPortalData(shopId);
     });
 
-    return () => unsubscribe();
+    // Polling (5 seconds) for background updates
+    const interval = setInterval(() => {
+      loadPortalData(shopId);
+    }, 5000);
+
+    // Storage listener to capture instant updates from other tabs
+    const handleStorageChange = (e) => {
+      if (
+        e.key === 'nyathiyas_orders' || 
+        e.key === 'nyathiyas_order_items' || 
+        e.key === 'nyathiyas_batches' ||
+        e.key === 'nyathiyas_order_history'
+      ) {
+        loadPortalData(shopId);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [userSession]);
 
   // Quantity handlers
@@ -195,17 +220,27 @@ export default function ShopkeeperPortal() {
     if (totalItems === 0 || !userSession?.profile?.shop_id) return;
 
     setSubmittingOrder(true);
-    try {
-      const orderItems = Object.entries(cart).map(([flavorId, qty]) => ({
-        flavor_id: flavorId,
-        quantity: qty
-      }));
+    
+    const orderItems = Object.entries(cart).map(([flavorId, qty]) => ({
+      flavor_id: flavorId,
+      quantity: qty
+    }));
 
+    console.log('[DEBUG] Submitting Order Payload:', {
+      shopId: userSession.profile.shop_id,
+      items: orderItems,
+      notes
+    });
+
+    try {
       const newOrder = await supabaseService.createOrder(
         userSession.profile.shop_id,
         orderItems,
         notes
       );
+
+      console.log('[DEBUG] Backend Response Success:', newOrder);
+      console.log('[DEBUG] Created Order ID:', newOrder?.id);
 
       // Trigger local mock realtime change event
       supabaseService.triggerLocalOrderChange('INSERT', newOrder);
@@ -218,6 +253,7 @@ export default function ShopkeeperPortal() {
       // Reload data
       loadPortalData(userSession.profile.shop_id);
     } catch (err) {
+      console.error('[DEBUG] Order Submission Failed:', err.message);
       alert('Failed to place order: ' + err.message);
     } finally {
       setSubmittingOrder(false);
@@ -268,6 +304,15 @@ export default function ShopkeeperPortal() {
       }));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRestockReorder = (flavorId) => {
+    setCart(prev => ({
+      ...prev,
+      [flavorId]: 5
+    }));
+    setActiveTab('order');
+    setIsReviewOpen(true);
   };
 
   // Parlour Stock Adjustment handlers
@@ -357,6 +402,27 @@ export default function ShopkeeperPortal() {
     }
   };
 
+  const handleCancelOrderSubmit = async (e) => {
+    e.preventDefault();
+    if (!cancellingOrder) return;
+
+    const isDirect = cancellingOrder.status === 'pending';
+    const nextStatus = isDirect ? 'cancelled' : 'cancellation_requested';
+
+    try {
+      setLoading(true);
+      await supabaseService.updateOrderStatus(cancellingOrder.id, nextStatus, cancellationReason);
+      setCancellingOrder(null);
+      setCancellationReason('');
+      loadPortalData(userSession.profile.shop_id);
+      alert(isDirect ? 'Order cancelled successfully.' : 'Cancellation request submitted to admin.');
+    } catch (err) {
+      alert('Failed to cancel order: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter and search flavors
   const filteredFlavors = flavors.filter(f => {
     const matchesSearch = f.flavor_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -384,6 +450,8 @@ export default function ShopkeeperPortal() {
       case 'preparing': return 'badge-status preparing';
       case 'dispatched': return 'badge-status dispatched';
       case 'delivered': return 'badge-status delivered';
+      case 'cancelled': return 'badge-status cancelled';
+      case 'cancellation_requested': return 'badge-status cancellation-requested';
       default: return 'badge-status';
     }
   };
@@ -395,6 +463,8 @@ export default function ShopkeeperPortal() {
       case 'preparing': return <Package size={16} />;
       case 'dispatched': return <Truck size={16} />;
       case 'delivered': return <CheckCircle size={16} />;
+      case 'cancelled': return <AlertCircle size={16} />;
+      case 'cancellation_requested': return <AlertCircle size={16} />;
       default: return null;
     }
   };
@@ -488,7 +558,13 @@ export default function ShopkeeperPortal() {
       {/* HEADER */}
       <header className="portal-main-header">
         <div className="header-brand">
-          <span className="brand-logo" onClick={() => navigate('/')}>Nyathiya's</span>
+          <span className="brand-logo" onClick={() => {
+            navigate('/shop');
+            setActiveTab('order');
+            setSubmittedOrderDetails(null);
+            setSearchQuery('');
+            setSelectedCategory('All');
+          }}>Nyathiya's</span>
           <div className="shop-badge">
             <span className="shop-code-pill">{shop.shop_code}</span>
             <span className="shop-name-text">{shop.shop_name}</span>
@@ -629,75 +705,146 @@ export default function ShopkeeperPortal() {
               <div className="empty-catalog">
                 <p>No gourmet flavors match your current filters.</p>
               </div>
-            ) : (
-              <div className="flavor-catalog-grid">
-                {filteredFlavors.map(flavor => {
-                  const qty = cart[flavor.id] || 0;
-                  const stockRemaining = flavor.stock_remaining !== undefined ? flavor.stock_remaining : 50;
-                  const isLowStock = stockRemaining < (flavor.reorder_point || 15) && stockRemaining > 0;
-                  const isOutOfStock = stockRemaining === 0;
+            ) : (() => {
+              // Group flavors by stock level
+              const availableFlavors = [];
+              const lowStockFlavors = [];
+              const soldOutFlavors = [];
 
-                  return (
-                    <div className={`flavor-order-card ${isOutOfStock ? 'card-out-of-stock' : ''}`} key={flavor.id}>
-                      <div className="flavor-card-image-wrap">
-                        {flavor.image_url ? (
-                          <img src={flavor.image_url} alt={flavor.flavor_name} />
-                        ) : (
-                          <div className="flavor-image-fallback">
-                            <ShoppingBag size={32} />
-                          </div>
-                        )}
-                        <span className="flavor-card-category">{flavor.category}</span>
-                        <span className="flavor-card-number">No. {flavor.number || '00'}</span>
-                      </div>
-                      <div className="flavor-card-details">
-                        <div className="flavor-card-header-row">
-                          <h3>{flavor.flavor_name}</h3>
-                          <div className="stock-indicators-row">
-                            {isOutOfStock ? (
-                              <span className="stock-alert-badge out">SOLD OUT</span>
-                            ) : isLowStock ? (
-                              <span className="stock-alert-badge low">LOW STOCK ({stockRemaining} Left)</span>
-                            ) : (
-                              <span className="stock-alert-badge ok">AVAILABLE ({stockRemaining} Tubs)</span>
-                            )}
-                          </div>
-                        </div>
-                        <p className="flavor-notes">{flavor.notes || 'Premium hand-crafted ice cream batch.'}</p>
-                        
-                        <div className="pack-size-display text-muted">
-                          <span>Pack Size: <strong>{flavor.unit || 'Tub (5L)'}</strong></span>
-                          <span>•</span>
-                          <span>MOQ: <strong>{flavor.min_order_qty || 5} Tubs</strong></span>
-                        </div>
+              filteredFlavors.forEach(flavor => {
+                const stockRemaining = flavor.stock_remaining !== undefined ? flavor.stock_remaining : 50;
+                const isOutOfStock = stockRemaining === 0;
+                const isLowStock = stockRemaining < (flavor.reorder_point || 15) && stockRemaining > 0;
+                
+                if (isOutOfStock) {
+                  soldOutFlavors.push(flavor);
+                } else if (isLowStock) {
+                  lowStockFlavors.push(flavor);
+                } else {
+                  availableFlavors.push(flavor);
+                }
+              });
 
-                        <div className="flavor-card-action-row">
+              const renderFlavorCard = (flavor) => {
+                const qty = cart[flavor.id] || 0;
+                const stockRemaining = flavor.stock_remaining !== undefined ? flavor.stock_remaining : 50;
+                const isLowStock = stockRemaining < (flavor.reorder_point || 15) && stockRemaining > 0;
+                const isOutOfStock = stockRemaining === 0;
+
+                return (
+                  <div className={`flavor-order-card ${isOutOfStock ? 'card-out-of-stock' : ''}`} key={flavor.id}>
+                    <div className="flavor-card-image-wrap">
+                      {flavor.image_url ? (
+                        <img src={flavor.image_url} alt={flavor.flavor_name} />
+                      ) : (
+                        <div className="flavor-image-fallback">
+                          <ShoppingBag size={32} />
+                        </div>
+                      )}
+                      <span className="flavor-card-category">{flavor.category}</span>
+                      <span className="flavor-card-number">No. {flavor.number || '00'}</span>
+                    </div>
+                    <div className="flavor-card-details">
+                      <div className="flavor-card-header-row">
+                        <h3>{flavor.flavor_name}</h3>
+                        <div className="stock-indicators-row">
                           {isOutOfStock ? (
-                            <button className="add-to-order-btn disabled" disabled>
-                              Out of Stock
-                            </button>
-                          ) : qty > 0 ? (
-                            <div className="qty-selector">
-                              <button onClick={() => updateQuantity(flavor.id, -5)} className="qty-btn" title="Decrease">
-                                <Minus size={16} />
-                              </button>
-                              <span className="qty-value">{qty} Tubs</span>
-                              <button onClick={() => updateQuantity(flavor.id, 5)} className="qty-btn" title="Increase" disabled={qty >= stockRemaining}>
-                                <Plus size={16} />
-                              </button>
-                            </div>
+                            <span className="stock-alert-badge out">SOLD OUT</span>
+                          ) : isLowStock ? (
+                            <span className="stock-alert-badge low">LOW STOCK ({stockRemaining} Left)</span>
                           ) : (
-                            <button className="add-to-order-btn" onClick={() => updateQuantity(flavor.id, 5)}>
-                              <Plus size={14} style={{ marginRight: '6px' }} /> Order Tubs (MOQ: 5)
-                            </button>
+                            <span className="stock-alert-badge ok">AVAILABLE ({stockRemaining} Tubs)</span>
                           )}
                         </div>
                       </div>
+                      <p className="flavor-notes">{flavor.notes || 'Premium hand-crafted ice cream batch.'}</p>
+                      
+                      <div className="pack-size-display text-muted">
+                        <span>Pack Size: <strong>{flavor.unit || 'Tub (5L)'}</strong></span>
+                        <span>•</span>
+                        <span>MOQ: <strong>{flavor.min_order_qty || 5} Tubs</strong></span>
+                      </div>
+
+                      <div className="flavor-card-action-row">
+                        {isOutOfStock ? (
+                          <button className="add-to-order-btn disabled" disabled>
+                            Out of Stock
+                          </button>
+                        ) : qty > 0 ? (
+                          <div className="qty-selector">
+                            <button onClick={() => updateQuantity(flavor.id, -5)} className="qty-btn" title="Decrease">
+                              <Minus size={16} />
+                            </button>
+                            <span className="qty-value">{qty} Tubs</span>
+                            <button onClick={() => updateQuantity(flavor.id, 5)} className="qty-btn" title="Increase" disabled={qty >= stockRemaining}>
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button className="add-to-order-btn" onClick={() => updateQuantity(flavor.id, 5)}>
+                            <Plus size={14} style={{ marginRight: '6px' }} /> Order Tubs (MOQ: 5)
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="catalog-sections-container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                  {/* Available Flavors Section */}
+                  {availableFlavors.length > 0 && (
+                    <div className="catalog-section">
+                      <h3 className="catalog-section-title" style={{ color: 'var(--gold)', borderBottom: '1px solid rgba(212, 175, 55, 0.15)', paddingBottom: '6px', marginBottom: '16px', letterSpacing: '1px', fontSize: '1.2rem', textTransform: 'uppercase' }}>Available Flavors</h3>
+                      <div className="flavor-catalog-grid">
+                        {availableFlavors.map(renderFlavorCard)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Low Stock Flavors Section */}
+                  {lowStockFlavors.length > 0 && (
+                    <div className="catalog-section">
+                      <h3 className="catalog-section-title low-stock" style={{ color: 'var(--text-main)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '6px', marginBottom: '16px', letterSpacing: '1px', fontSize: '1.2rem', textTransform: 'uppercase' }}>Low Stock</h3>
+                      <div className="flavor-catalog-grid">
+                        {lowStockFlavors.map(renderFlavorCard)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Unavailable / Sold Out Section */}
+                  {soldOutFlavors.length > 0 && (
+                    <div className="catalog-section">
+                      <div 
+                        className="sold-out-header" 
+                        onClick={() => setSoldOutCollapsed(!soldOutCollapsed)} 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          cursor: 'pointer', 
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
+                          paddingBottom: '8px', 
+                          marginBottom: '16px' 
+                        }}
+                      >
+                        <h3 className="catalog-section-title sold-out" style={{ margin: 0, color: 'var(--text-muted)', letterSpacing: '1px', fontSize: '1.2rem', textTransform: 'uppercase' }}>Unavailable / Sold Out</h3>
+                        <span style={{ color: 'var(--gold)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
+                          {soldOutCollapsed ? 'Show' : 'Hide'} ({soldOutFlavors.length})
+                          {soldOutCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </span>
+                      </div>
+                      {!soldOutCollapsed && (
+                        <div className="flavor-catalog-grid">
+                          {soldOutFlavors.map(renderFlavorCard)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Sticky Bottom Order summary Bar */}
             {getCartTotalItems() > 0 && (
@@ -754,16 +901,25 @@ export default function ShopkeeperPortal() {
                   const expiry = item.batches ? new Date(item.batches.expiry_date) : null;
                   const diffDays = expiry ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)) : null;
 
+                  const isOutOfStock = item.stock_qty === 0;
+                  const isLowStock = item.stock_qty > 0 && item.stock_qty <= 5;
+
                   return (
-                    <div className="parlour-stock-card" key={item.id}>
+                    <div className={`parlour-stock-card ${isOutOfStock ? 'out-of-stock' : ''} ${isLowStock ? 'low-stock' : ''}`} key={item.id}>
                       <div className="card-top">
-                        <strong className="flavor-title">{item.flavors?.flavor_name}</strong>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <strong className="flavor-title">{item.flavors?.flavor_name}</strong>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                            {isOutOfStock && <span className="warning-badge out">Stock Finished</span>}
+                            {isLowStock && <span className="warning-badge low">Low Stock</span>}
+                          </div>
+                        </div>
                         <code className="batch-code">{item.batches?.batch_number}</code>
                       </div>
                       <div className="card-mid">
                         <div className="stock-level">
                           <span className="label">Current Stock:</span>
-                          <strong className="qty-val">{item.stock_qty} Tubs</strong>
+                          <strong className={`qty-val ${isOutOfStock ? 'out' : ''} ${isLowStock ? 'low' : ''}`}>{item.stock_qty} Tubs</strong>
                         </div>
                         <div className="expiry-level">
                           <span className="label">Shelf Expiry:</span>
@@ -775,18 +931,31 @@ export default function ShopkeeperPortal() {
                       </div>
                       
                       <div className="card-actions">
-                        <button className="quick-btn sale" onClick={() => handleQuickParlourSale(item, 1)} title="Record 1 Tub Sold">
-                          Record Sale (-1)
-                        </button>
-                        <button className="quick-btn bulk" onClick={() => handleQuickParlourSale(item, 5)} title="Record 5 Tubs Sold">
-                          Bulk Sale (-5)
-                        </button>
-                        <button className="quick-btn adjust" onClick={() => handleOpenParlourAdjust(item)} title="Report Damage or Loss">
-                          Report Loss
-                        </button>
-                        <button className="quick-btn return" onClick={() => handleOpenParlourReturn(item)} title="Return Surplus to Warehouse">
-                          Return Tubs
-                        </button>
+                        {isOutOfStock ? (
+                          <button className="order-now-btn" onClick={() => handleRestockReorder(item.flavor_id)}>
+                            Order Now
+                          </button>
+                        ) : (
+                          <>
+                            {isLowStock && (
+                              <button className="order-now-btn" onClick={() => handleRestockReorder(item.flavor_id)} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                                Reorder
+                              </button>
+                            )}
+                            <button className="quick-btn sale" onClick={() => handleQuickParlourSale(item, 1)} title="Record 1 Tub Sold">
+                              Record Sale (-1)
+                            </button>
+                            <button className="quick-btn bulk" onClick={() => handleQuickParlourSale(item, 5)} title="Record 5 Tubs Sold">
+                              Bulk Sale (-5)
+                            </button>
+                            <button className="quick-btn adjust" onClick={() => handleOpenParlourAdjust(item)} title="Report Damage or Loss">
+                              Report Loss
+                            </button>
+                            <button className="quick-btn return" onClick={() => handleOpenParlourReturn(item)} title="Return Surplus to Warehouse">
+                              Return Tubs
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -915,6 +1084,51 @@ export default function ShopkeeperPortal() {
                             </div>
 
                           </div>
+
+                          {/* Cancellation Actions & Notices */}
+                          {order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'cancellation_requested' && (
+                            <div className="order-actions-footer">
+                              {['pending'].includes(order.status) ? (
+                                <button
+                                  className="btn btn-danger-outline"
+                                  onClick={(e) => { e.stopPropagation(); setCancellingOrder(order); }}
+                                >
+                                  Cancel Order
+                                </button>
+                              ) : ['accepted'].includes(order.status) ? (
+                                <button
+                                  className="btn btn-warning-outline"
+                                  onClick={(e) => { e.stopPropagation(); setCancellingOrder(order); }}
+                                >
+                                  Request Cancellation
+                                </button>
+                              ) : (
+                                <div className="cancellation-restricted-notice">
+                                  <AlertCircle size={14} style={{ marginRight: '8px', flexShrink: 0 }} />
+                                  <span>Cancellation restricted. This order has already entered processing or dispatch. Contact admin support.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {order.status === 'cancellation_requested' && (
+                            <div className="order-actions-footer">
+                              <div className="cancellation-pending-notice">
+                                <Clock size={14} style={{ marginRight: '8px', flexShrink: 0 }} />
+                                <span>Cancellation Request Pending Admin Review. Reason: "{order.cancellation_reason || 'No reason provided'}"</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {order.status === 'cancelled' && (
+                            <div className="order-actions-footer">
+                              <div className="cancellation-completed-notice">
+                                <AlertCircle size={14} style={{ marginRight: '8px', flexShrink: 0 }} />
+                                <span>Order Cancelled. Reason: "{order.cancellation_reason || 'No reason provided'}"</span>
+                              </div>
+                            </div>
+                          )}
+
                         </div>
                       )}
                     </div>
@@ -1236,6 +1450,56 @@ export default function ShopkeeperPortal() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsParlourReturnOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Process Return</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CANCELLATION MODAL */}
+      {cancellingOrder && (
+        <div className="review-modal-overlay">
+          <div className="review-modal-card fade-in-up compact-modal">
+            <div className="modal-header">
+              <h3>{cancellingOrder.status === 'pending' ? 'Cancel Order' : 'Request Cancellation'}</h3>
+              <button className="close-modal-btn" onClick={() => { setCancellingOrder(null); setCancellationReason(''); }}>×</button>
+            </div>
+            <form onSubmit={handleCancelOrderSubmit}>
+              <div className="modal-body">
+                <div className="parlour-adjust-target">
+                  <strong>Order Number:</strong>
+                  <p>{cancellingOrder.order_number}</p>
+                  <p className="subtext text-muted">
+                    {cancellingOrder.status === 'pending'
+                      ? 'This order is still pending approval and can be cancelled immediately.'
+                      : 'This order is already accepted. Requesting cancellation requires admin review.'}
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="cancel-reason">Reason for Cancellation</label>
+                  <select
+                    id="cancel-reason"
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select a reason --</option>
+                    <option value="Ordered by mistake">Ordered by mistake</option>
+                    <option value="Wrong flavor selected">Wrong flavor selected</option>
+                    <option value="Quantity entered incorrectly">Quantity entered incorrectly</option>
+                    <option value="Duplicate order">Duplicate order</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => { setCancellingOrder(null); setCancellationReason(''); }}>
+                  Keep Order
+                </button>
+                <button type="submit" className="btn btn-danger-action" disabled={!cancellationReason}>
+                  {cancellingOrder.status === 'pending' ? 'Confirm Cancellation' : 'Send Request'}
+                </button>
               </div>
             </form>
           </div>
