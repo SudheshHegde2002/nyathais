@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, Plus, Edit2, Search, Filter, Clock,
   AlertCircle, Users, User, MapPin, Phone, Mail, Check, ArrowLeft,
-  Volume2, VolumeX, Package, TrendingUp, AlertTriangle, ArrowRightLeft,
+  Volume2, VolumeX, Package, TrendingUp, AlertTriangle,
   RotateCcw, History, ClipboardList, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
@@ -119,9 +119,9 @@ export default function AdminDashboard() {
 
   const ordersRef = useRef([]);
 
-  // Check login session
   useEffect(() => {
     checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkSession = async () => {
@@ -274,6 +274,7 @@ export default function AdminDashboard() {
     });
 
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSession, selectedOrder, soundEnabled]);
 
   // Load selected order history
@@ -744,7 +745,6 @@ export default function AdminDashboard() {
 
   // Filters for Movements Log
   const filteredMovements = movements.filter(m => {
-    const shop = m.shops || {};
     const flavor = m.flavors || {};
     const batch = m.batches || {};
 

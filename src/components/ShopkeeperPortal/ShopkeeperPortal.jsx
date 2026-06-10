@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, History, User, MapPin, Phone, Mail,
   Plus, Minus, Check, Search, FileText, ChevronRight, Clock,
-  Truck, CheckCircle, Package, AlertCircle, ShoppingCart, ArrowLeft,
-  ArrowRightLeft, AlertTriangle, RefreshCw
+  Truck, CheckCircle, Package, AlertCircle, ShoppingCart, ArrowLeft
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
 import { formatDate } from '../../utils/dateFormatter';
