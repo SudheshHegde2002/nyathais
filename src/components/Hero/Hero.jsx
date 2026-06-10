@@ -8,11 +8,13 @@ export default function Hero({ setShowFranchiseForm }) {
         <p className="hero-subtitle">
           Immerse yourself in a legacy of premium craftsmanship. Exquisite flavors, cinematic luxury, and unforgettable moments wrapped in gold.
         </p>
-        <div className="hero-buttons">
-          <button className="btn btn-primary" onClick={() => setShowFranchiseForm(true)}>Join the Legacy</button>
-          <a href="#products" className="btn btn-secondary">Explore Collection</a>
-        </div>
       </div>
+      <a href="#about" className="hero-scroll-cue" aria-label="Scroll to discover our story">
+        <span className="scroll-text">Scroll to discover</span>
+        <div className="scroll-arrow">
+          <span className="arrow-down"></span>
+        </div>
+      </a>
     </section>
   );
 }

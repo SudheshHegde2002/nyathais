@@ -1702,6 +1702,7 @@
 }
 
 /* Responsive adjustment for Mobile Phones */
+/* Responsive adjustment for Mobile Phones */
 @media (max-width: 768px) {
   .form-sections-grid {
     grid-template-columns: 1fr;
@@ -1733,4 +1734,279 @@
   .profile-info-heading {
     font-size: 1.25rem;
   }
+}
+
+/* --- PARLOUR INVENTORY AND STOCK ADJUSTMENT STYLES --- */
+
+.tab-header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tab-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.parlour-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 20px;
+}
+
+.parlour-stock-card {
+  background: rgba(43, 15, 69, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s;
+}
+
+.parlour-stock-card:hover {
+  border-color: rgba(212, 175, 55, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.parlour-stock-card .card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.parlour-stock-card .flavor-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  color: var(--gold-light);
+  line-height: 1.3;
+}
+
+.parlour-stock-card .batch-code {
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  color: var(--gold-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.parlour-stock-card .card-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(26, 8, 32, 0.3);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.parlour-stock-card .stock-level,
+.parlour-stock-card .expiry-level {
+  display: flex;
+  justify-content: space-between;
+}
+
+.parlour-stock-card .label {
+  color: var(--text-muted);
+}
+
+.parlour-stock-card .qty-val {
+  color: var(--gold);
+  font-size: 0.95rem;
+}
+
+.parlour-stock-card .expiry-val {
+  color: var(--text-main);
+}
+
+.parlour-stock-card .expiry-val.critical {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.parlour-stock-card .card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.quick-btn:hover {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: rgba(212, 175, 55, 0.3);
+  color: var(--gold);
+}
+
+.quick-btn.sale {
+  background: rgba(75, 192, 192, 0.05);
+  border-color: rgba(75, 192, 192, 0.15);
+  color: #4bc0c0;
+}
+
+.quick-btn.sale:hover {
+  background: #4bc0c0;
+  color: #1a0820;
+}
+
+.quick-btn.adjust {
+  grid-column: span 2;
+  background: rgba(235, 87, 87, 0.05);
+  border-color: rgba(235, 87, 87, 0.15);
+  color: #eb5757;
+}
+
+.quick-btn.adjust:hover {
+  background: #eb5757;
+  color: #ffffff;
+}
+
+.quick-btn.return {
+  background: rgba(163, 91, 163, 0.08);
+  border-color: rgba(163, 91, 163, 0.2);
+  color: #d4a5d4;
+}
+
+.quick-btn.return:hover {
+  background: #a35ba3;
+  color: #ffffff;
+}
+
+.empty-stock-box {
+  text-align: center;
+  padding: 60px;
+  background: rgba(43, 15, 69, 0.2);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+.empty-stock-box .empty-icon {
+  color: rgba(255, 255, 255, 0.1);
+}
+
+.empty-stock-box h3 {
+  font-size: 1.25rem;
+  color: var(--text-main);
+}
+
+.empty-stock-box p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  max-width: 380px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* Stock status indicators in Catalog */
+.stock-indicators-row {
+  margin-top: 4px;
+}
+
+.stock-alert-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.stock-alert-badge.ok {
+  background: rgba(75, 192, 192, 0.12);
+  color: #4bc0c0;
+}
+
+.stock-alert-badge.low {
+  background: rgba(255, 159, 64, 0.12);
+  color: #ff9f40;
+}
+
+.stock-alert-badge.out {
+  background: rgba(235, 87, 87, 0.12);
+  color: #eb5757;
+}
+
+.pack-size-display {
+  display: flex;
+  gap: 8px;
+  font-size: 0.78rem;
+  margin-top: -12px;
+  margin-bottom: 20px;
+  opacity: 0.75;
+}
+
+.pack-size-display strong {
+  color: var(--gold-light);
+}
+
+.card-out-of-stock {
+  opacity: 0.6;
+}
+
+.card-out-of-stock img {
+  filter: grayscale(0.8);
+}
+
+.add-to-order-btn.disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.add-to-order-btn.disabled:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+}
+
+.parlour-adjust-target {
+  background: rgba(26, 8, 32, 0.4);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 2px solid var(--accent);
+  margin-bottom: 16px;
+}
+
+.parlour-adjust-target strong {
+  font-size: 0.8rem;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.parlour-adjust-target p {
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.parlour-adjust-target .subtext {
+  font-size: 0.78rem;
+  margin-top: 2px;
 }

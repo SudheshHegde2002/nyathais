@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   LogOut, ShoppingBag, History, User, MapPin, Phone, Mail,
   Plus, Minus, Check, Search, FileText, ChevronRight, Clock,
-  Truck, CheckCircle, Package, AlertCircle, ShoppingCart, ArrowLeft
+  Truck, CheckCircle, Package, AlertCircle, ShoppingCart, ArrowLeft,
+  ArrowRightLeft, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { supabaseService } from '../../supabase';
 import { formatDate } from '../../utils/dateFormatter';
@@ -21,9 +22,10 @@ export default function ShopkeeperPortal() {
   const [authLoading, setAuthLoading] = useState(false);
 
   // Portal State
-  const [activeTab, setActiveTab] = useState('order'); // 'order' or 'history'
+  const [activeTab, setActiveTab] = useState('order'); // 'order', 'parlour_stock', 'history', 'profile'
   const [flavors, setFlavors] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [parlourStock, setParlourStock] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -46,6 +48,19 @@ export default function ShopkeeperPortal() {
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+
+  // Parlour Adjustment Modal State
+  const [isParlourAdjustOpen, setIsParlourAdjustOpen] = useState(false);
+  const [selectedStockForAdjust, setSelectedStockForAdjust] = useState(null);
+  const [parlourAdjustQty, setParlourAdjustQty] = useState(1);
+  const [parlourAdjustType, setParlourAdjustType] = useState('damaged'); // 'damaged', 'adjustment'
+  const [parlourAdjustNotes, setParlourAdjustNotes] = useState('');
+
+  // Parlour Return Modal State
+  const [isParlourReturnOpen, setIsParlourReturnOpen] = useState(false);
+  const [selectedStockForReturn, setSelectedStockForReturn] = useState(null);
+  const [parlourReturnQty, setParlourReturnQty] = useState(5);
+  const [parlourReturnNotes, setParlourReturnNotes] = useState('');
 
   // Load initial session
   useEffect(() => {
@@ -113,6 +128,7 @@ export default function ShopkeeperPortal() {
       setUserSession(null);
       setCart({});
       setOrders([]);
+      setParlourStock([]);
       setSubmittedOrderDetails(null);
     } catch (err) {
       console.error('Logout error:', err);
@@ -121,29 +137,29 @@ export default function ShopkeeperPortal() {
 
   const loadPortalData = async (shopId) => {
     try {
-      // Load active flavors
+      // Load active flavors (which includes aggregated stock details)
       const flavorsList = await supabaseService.getFlavors(true);
       setFlavors(flavorsList);
 
-      // Load shop orders
+      // Load shop orders & local stock
       if (shopId) {
         const ordersList = await supabaseService.getOrders({ shop_id: shopId });
         setOrders(ordersList);
+
+        const stockList = await supabaseService.getStockByLocation(shopId);
+        setParlourStock(stockList);
       }
     } catch (err) {
       console.error('Error loading portal data:', err);
     }
   };
 
-  // Set up realtime updates for shopkeeper orders
+  // Set up realtime updates for shopkeeper orders & stock levels
   useEffect(() => {
     if (!userSession?.profile?.shop_id) return;
 
     const unsubscribe = supabaseService.subscribeToOrders((payload) => {
-      // Check if the order belongs to this shop
       const shopId = userSession.profile.shop_id;
-
-      // Reload order list to keep everything in sync
       loadPortalData(shopId);
     });
 
@@ -156,6 +172,7 @@ export default function ShopkeeperPortal() {
       const current = prev[flavorId] || 0;
       let next = current + delta;
 
+      // MOQ is 5 tubs
       if (next < 5) {
         next = 0;
       }
@@ -254,12 +271,107 @@ export default function ShopkeeperPortal() {
     reader.readAsDataURL(file);
   };
 
+  // Parlour Stock Adjustment handlers
+  const handleQuickParlourSale = async (stockItem, quantity) => {
+    if (stockItem.stock_qty < quantity) {
+      alert(`Cannot record sale. Only ${stockItem.stock_qty} Tubs left in parlour.`);
+      return;
+    }
+    try {
+      await supabaseService.adjustLocationStock(
+        userSession.profile.shop_id,
+        stockItem.flavor_id,
+        stockItem.batch_id,
+        -quantity,
+        'adjustment',
+        `Recorded parlour sale of ${quantity} tubs`
+      );
+      loadPortalData(userSession.profile.shop_id);
+    } catch (err) {
+      alert('Failed to record sale: ' + err.message);
+    }
+  };
+
+  const handleOpenParlourAdjust = (stockItem) => {
+    setSelectedStockForAdjust(stockItem);
+    setParlourAdjustQty(1);
+    setParlourAdjustType('damaged');
+    setParlourAdjustNotes('');
+    setIsParlourAdjustOpen(true);
+  };
+
+  const handleParlourAdjustSubmit = async (e) => {
+    e.preventDefault();
+    if (parlourAdjustQty <= 0) {
+      alert('Adjustment quantity must be greater than zero.');
+      return;
+    }
+    if (selectedStockForAdjust.stock_qty < parlourAdjustQty) {
+      alert(`Insufficient stock. Only ${selectedStockForAdjust.stock_qty} Tubs remaining.`);
+      return;
+    }
+    try {
+      await supabaseService.adjustLocationStock(
+        userSession.profile.shop_id,
+        selectedStockForAdjust.flavor_id,
+        selectedStockForAdjust.batch_id,
+        -Number(parlourAdjustQty),
+        parlourAdjustType,
+        parlourAdjustNotes || `Parlour stock adjustment: -${parlourAdjustQty} units (${parlourAdjustType})`
+      );
+      setIsParlourAdjustOpen(false);
+      loadPortalData(userSession.profile.shop_id);
+    } catch (err) {
+      alert('Failed to save adjustment: ' + err.message);
+    }
+  };
+
+  const handleOpenParlourReturn = (stockItem) => {
+    setSelectedStockForReturn(stockItem);
+    setParlourReturnQty(Math.min(stockItem.stock_qty, 5));
+    setParlourReturnNotes('');
+    setIsParlourReturnOpen(true);
+  };
+
+  const handleParlourReturnSubmit = async (e) => {
+    e.preventDefault();
+    if (parlourReturnQty <= 0) {
+      alert('Return quantity must be greater than zero.');
+      return;
+    }
+    if (selectedStockForReturn.stock_qty < parlourReturnQty) {
+      alert(`Cannot return more than available store stock (${selectedStockForReturn.stock_qty} Tubs).`);
+      return;
+    }
+    try {
+      await supabaseService.returnStockToWarehouse(
+        userSession.profile.shop_id,
+        selectedStockForReturn.flavor_id,
+        selectedStockForReturn.batch_id,
+        parlourReturnQty,
+        parlourReturnNotes || `Returned surplus stock to master warehouse`
+      );
+      setIsParlourReturnOpen(false);
+      loadPortalData(userSession.profile.shop_id);
+    } catch (err) {
+      alert('Failed to process return: ' + err.message);
+    }
+  };
+
   // Filter and search flavors
   const filteredFlavors = flavors.filter(f => {
     const matchesSearch = f.flavor_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (f.notes && f.notes.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === 'All' || f.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  // Filter parlour stock
+  const filteredParlourStock = parlourStock.filter(l => {
+    const flavor = l.flavors || {};
+    const batch = l.batches || {};
+    return flavor.flavor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.batch_number?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Get categories
@@ -387,14 +499,23 @@ export default function ShopkeeperPortal() {
         <div className="header-actions">
           <button
             className={`header-nav-btn ${activeTab === 'order' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('order'); setSubmittedOrderDetails(null); }}
+            onClick={() => { setActiveTab('order'); setSubmittedOrderDetails(null); setSearchQuery(''); }}
           >
             <ShoppingBag size={18} />
-            <span>Order</span>
+            <span>Catalog</span>
           </button>
+          
+          <button
+            className={`header-nav-btn ${activeTab === 'parlour_stock' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('parlour_stock'); setSubmittedOrderDetails(null); setSearchQuery(''); }}
+          >
+            <Package size={18} />
+            <span>My Parlour Stock</span>
+          </button>
+
           <button
             className={`header-nav-btn ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('history'); setSubmittedOrderDetails(null); }}
+            onClick={() => { setActiveTab('history'); setSubmittedOrderDetails(null); setSearchQuery(''); }}
           >
             <History size={18} />
             <span>Order History</span>
@@ -402,13 +523,15 @@ export default function ShopkeeperPortal() {
               <span className="live-orders-indicator"></span>
             )}
           </button>
+          
           <button
             className={`header-nav-btn ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('profile'); setSubmittedOrderDetails(null); }}
+            onClick={() => { setActiveTab('profile'); setSubmittedOrderDetails(null); setSearchQuery(''); }}
           >
             <User size={18} />
             <span>Branding</span>
           </button>
+          
           <button className="logout-btn" onClick={handleLogout} title="Sign Out">
             <LogOut size={18} />
           </button>
@@ -511,8 +634,12 @@ export default function ShopkeeperPortal() {
               <div className="flavor-catalog-grid">
                 {filteredFlavors.map(flavor => {
                   const qty = cart[flavor.id] || 0;
+                  const stockRemaining = flavor.stock_remaining !== undefined ? flavor.stock_remaining : 50;
+                  const isLowStock = stockRemaining < (flavor.reorder_point || 15) && stockRemaining > 0;
+                  const isOutOfStock = stockRemaining === 0;
+
                   return (
-                    <div className="flavor-order-card" key={flavor.id}>
+                    <div className={`flavor-order-card ${isOutOfStock ? 'card-out-of-stock' : ''}`} key={flavor.id}>
                       <div className="flavor-card-image-wrap">
                         {flavor.image_url ? (
                           <img src={flavor.image_url} alt={flavor.flavor_name} />
@@ -527,23 +654,42 @@ export default function ShopkeeperPortal() {
                       <div className="flavor-card-details">
                         <div className="flavor-card-header-row">
                           <h3>{flavor.flavor_name}</h3>
+                          <div className="stock-indicators-row">
+                            {isOutOfStock ? (
+                              <span className="stock-alert-badge out">SOLD OUT</span>
+                            ) : isLowStock ? (
+                              <span className="stock-alert-badge low">LOW STOCK ({stockRemaining} Left)</span>
+                            ) : (
+                              <span className="stock-alert-badge ok">AVAILABLE ({stockRemaining} Tubs)</span>
+                            )}
+                          </div>
                         </div>
                         <p className="flavor-notes">{flavor.notes || 'Premium hand-crafted ice cream batch.'}</p>
+                        
+                        <div className="pack-size-display text-muted">
+                          <span>Pack Size: <strong>{flavor.unit || 'Tub (5L)'}</strong></span>
+                          <span>•</span>
+                          <span>MOQ: <strong>{flavor.min_order_qty || 5} Tubs</strong></span>
+                        </div>
 
                         <div className="flavor-card-action-row">
-                          {qty > 0 ? (
+                          {isOutOfStock ? (
+                            <button className="add-to-order-btn disabled" disabled>
+                              Out of Stock
+                            </button>
+                          ) : qty > 0 ? (
                             <div className="qty-selector">
                               <button onClick={() => updateQuantity(flavor.id, -5)} className="qty-btn" title="Decrease">
                                 <Minus size={16} />
                               </button>
                               <span className="qty-value">{qty} Tubs</span>
-                              <button onClick={() => updateQuantity(flavor.id, 5)} className="qty-btn" title="Increase">
+                              <button onClick={() => updateQuantity(flavor.id, 5)} className="qty-btn" title="Increase" disabled={qty >= stockRemaining}>
                                 <Plus size={16} />
                               </button>
                             </div>
                           ) : (
                             <button className="add-to-order-btn" onClick={() => updateQuantity(flavor.id, 5)}>
-                              <Plus size={14} style={{ marginRight: '6px' }} /> Add Tubs
+                              <Plus size={14} style={{ marginRight: '6px' }} /> Order Tubs (MOQ: 5)
                             </button>
                           )}
                         </div>
@@ -570,6 +716,82 @@ export default function ShopkeeperPortal() {
                 <button className="btn btn-primary review-order-btn" onClick={() => setIsReviewOpen(true)}>
                   Review & Submit Batch
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: MY PARLOUR STOCK */}
+        {!submittedOrderDetails && activeTab === 'parlour_stock' && (
+          <div className="parlour-stock-tab fade-in-up">
+            <div className="tab-header-line">
+              <div>
+                <h2 className="tab-title">My Parlour Stock</h2>
+                <p className="tab-subtitle">Real-time inventory levels currently available at your storefront parlour.</p>
+              </div>
+              <div className="search-box compact">
+                <Search size={16} className="search-icon" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter parlour stock..."
+                />
+              </div>
+            </div>
+
+            {filteredParlourStock.length === 0 ? (
+              <div className="empty-stock-box">
+                <Package size={48} className="empty-icon" />
+                <h3>No inventory at parlour</h3>
+                <p>Stock will be added to your parlour automatically when orders are delivered by our logistics.</p>
+                <button className="btn btn-secondary btn-sm" onClick={() => setActiveTab('order')}>
+                  Request Warehouse Restock
+                </button>
+              </div>
+            ) : (
+              <div className="parlour-stock-grid">
+                {filteredParlourStock.map(item => {
+                  const expiry = item.batches ? new Date(item.batches.expiry_date) : null;
+                  const diffDays = expiry ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+                  return (
+                    <div className="parlour-stock-card" key={item.id}>
+                      <div className="card-top">
+                        <strong className="flavor-title">{item.flavors?.flavor_name}</strong>
+                        <code className="batch-code">{item.batches?.batch_number}</code>
+                      </div>
+                      <div className="card-mid">
+                        <div className="stock-level">
+                          <span className="label">Current Stock:</span>
+                          <strong className="qty-val">{item.stock_qty} Tubs</strong>
+                        </div>
+                        <div className="expiry-level">
+                          <span className="label">Shelf Expiry:</span>
+                          <span className={`expiry-val ${diffDays !== null && diffDays <= 10 ? 'critical' : ''}`}>
+                            {item.batches ? formatDate(item.batches.expiry_date).split(',')[0] : 'N/A'}
+                            {diffDays !== null && diffDays <= 10 && ` (${diffDays}d left)`}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="card-actions">
+                        <button className="quick-btn sale" onClick={() => handleQuickParlourSale(item, 1)} title="Record 1 Tub Sold">
+                          Record Sale (-1)
+                        </button>
+                        <button className="quick-btn bulk" onClick={() => handleQuickParlourSale(item, 5)} title="Record 5 Tubs Sold">
+                          Bulk Sale (-5)
+                        </button>
+                        <button className="quick-btn adjust" onClick={() => handleOpenParlourAdjust(item)} title="Report Damage or Loss">
+                          Report Loss
+                        </button>
+                        <button className="quick-btn return" onClick={() => handleOpenParlourReturn(item)} title="Return Surplus to Warehouse">
+                          Return Tubs
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -907,6 +1129,120 @@ export default function ShopkeeperPortal() {
           </div>
         </div>
       )}
+
+      {/* PARLOUR ADJUSTMENT MODAL */}
+      {isParlourAdjustOpen && selectedStockForAdjust && (
+        <div className="review-modal-overlay">
+          <div className="review-modal-card fade-in-up compact-modal">
+            <div className="modal-header">
+              <h3>Report Parlour Loss</h3>
+              <button className="close-modal-btn" onClick={() => setIsParlourAdjustOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleParlourAdjustSubmit}>
+              <div className="modal-body">
+                <div className="parlour-adjust-target">
+                  <strong>Flavor Profile:</strong>
+                  <p>{selectedStockForAdjust.flavors?.flavor_name} ({selectedStockForAdjust.batches?.batch_number})</p>
+                  <p className="subtext text-muted">Currently at Store: {selectedStockForAdjust.stock_qty} Tubs</p>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="adjust-qty">Deduct Quantity (Tubs)</label>
+                  <input
+                    type="number"
+                    id="adjust-qty"
+                    value={parlourAdjustQty}
+                    onChange={(e) => setParlourAdjustQty(e.target.value)}
+                    min="1"
+                    max={selectedStockForAdjust.stock_qty}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="adjust-type">Reason / Type</label>
+                  <select
+                    id="adjust-type"
+                    value={parlourAdjustType}
+                    onChange={(e) => setParlourAdjustType(e.target.value)}
+                    required
+                  >
+                    <option value="damaged">Damage / Melted (Freezer Issue)</option>
+                    <option value="adjustment">General Discrepancy Correction</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="adjust-notes">Loss Explanation / Notes</label>
+                  <textarea
+                    id="adjust-notes"
+                    value={parlourAdjustNotes}
+                    onChange={(e) => setParlourAdjustNotes(e.target.value)}
+                    placeholder="e.g. Freezer seal failed overnight, temp went to 5C..."
+                    rows={2}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsParlourAdjustOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Deduct Stock</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PARLOUR RETURN STOCK MODAL */}
+      {isParlourReturnOpen && selectedStockForReturn && (
+        <div className="review-modal-overlay">
+          <div className="review-modal-card fade-in-up compact-modal">
+            <div className="modal-header">
+              <h3>Return Tubs to Warehouse</h3>
+              <button className="close-modal-btn" onClick={() => setIsParlourReturnOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleParlourReturnSubmit}>
+              <div className="modal-body">
+                <div className="parlour-adjust-target">
+                  <strong>Returning Flavor:</strong>
+                  <p>{selectedStockForReturn.flavors?.flavor_name} ({selectedStockForReturn.batches?.batch_number})</p>
+                  <p className="subtext text-muted">Available at Parlour: {selectedStockForReturn.stock_qty} Tubs</p>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="return-qty">Return Quantity (Tubs)</label>
+                  <input
+                    type="number"
+                    id="return-qty"
+                    value={parlourReturnQty}
+                    onChange={(e) => setParlourReturnQty(e.target.value)}
+                    min="1"
+                    max={selectedStockForReturn.stock_qty}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="return-notes">Reason for Return</label>
+                  <textarea
+                    id="return-notes"
+                    value={parlourReturnNotes}
+                    onChange={(e) => setParlourReturnNotes(e.target.value)}
+                    placeholder="e.g. Consolidating stock, rotation, overstocked for winter..."
+                    rows={2}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsParlourReturnOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Process Return</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
